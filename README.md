@@ -13,7 +13,7 @@ DLX-Sudoku-Constraint-Solver/
 ├── LICENSE
 ├── .gitignore
 │
-├── src/
+├── frontend/
 │   ├── main.js
 │   ├── preload.js
 │   ├── index.html
