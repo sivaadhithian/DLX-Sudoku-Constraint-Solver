@@ -1,0 +1,73 @@
+/* In-app dialogs built on the native <dialog> element, which gives us a focus trap,
+ * Escape-to-close and a backdrop. Both functions return Promises; no alert()/prompt(). */
+(function () {
+  'use strict';
+  const DLX = window.DLX;
+  const $ = (id) => document.getElementById(id);
+
+  function closeOnBackdropClick(dialog) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close('cancel');
+    });
+  }
+
+  /** Resolves true if the user confirms, false on Cancel / Escape / backdrop click. */
+  function confirmAction({ title, message, confirmLabel }) {
+    const dialog = $('confirm-dialog');
+    $('confirm-title').textContent = title;
+    $('confirm-text').textContent = message;
+    $('confirm-ok').textContent = confirmLabel;
+    dialog.returnValue = 'cancel';
+
+    return new Promise((resolve) => {
+      dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), { once: true });
+      dialog.showModal();
+    });
+  }
+
+  /** Resolves with a parsed 9x9 grid, or null if cancelled. Format errors stay inside the dialog. */
+  function askForCustomPuzzle() {
+    const dialog = $('custom-dialog');
+    const input = $('custom-input');
+    const errorEl = $('custom-error');
+    input.value = '';
+    errorEl.hidden = true;
+    dialog.returnValue = 'cancel';
+    let parsed = null;
+
+    return new Promise((resolve) => {
+      function onLoad() {
+        const result = DLX.parsePuzzleText(input.value);
+        if (!result.ok) {
+          errorEl.textContent = result.message;
+          errorEl.hidden = false;
+          input.focus();
+          return;
+        }
+        parsed = result.grid;
+        dialog.close('confirm');
+      }
+      function onCancel() {
+        dialog.close('cancel');
+      }
+      function onClose() {
+        $('custom-load').removeEventListener('click', onLoad);
+        $('custom-cancel').removeEventListener('click', onCancel);
+        resolve(dialog.returnValue === 'confirm' ? parsed : null);
+      }
+      $('custom-load').addEventListener('click', onLoad);
+      $('custom-cancel').addEventListener('click', onCancel);
+      dialog.addEventListener('close', onClose, { once: true });
+      dialog.showModal();
+      input.focus();
+    });
+  }
+
+  function initDialogs() {
+    closeOnBackdropClick($('confirm-dialog'));
+    closeOnBackdropClick($('custom-dialog'));
+    $('custom-input').addEventListener('input', () => { $('custom-error').hidden = true; });
+  }
+
+  Object.assign(DLX, { confirmAction, askForCustomPuzzle, initDialogs });
+})();

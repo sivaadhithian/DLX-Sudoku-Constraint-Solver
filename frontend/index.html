@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>DLX SOLVER – Sudoku &amp; Constraint Solver</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Runs before first paint so the saved theme is applied without a flash. -->
+  <script src="js/theme.js"></script>
+</head>
+<body data-solver="idle">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true" focusable="false">
+          <rect x="6" y="6" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <circle cx="6" cy="6" r="2.6" class="node"/>
+          <circle cx="22" cy="6" r="2.6" class="node"/>
+          <circle cx="22" cy="22" r="2.6" class="node"/>
+          <circle cx="6" cy="22" r="2.6" class="node node-filled"/>
+        </svg>
+        <div>
+          <h1>DLX SOLVER</h1>
+          <p class="subtitle">Sudoku &amp; Constraint Solver</p>
+        </div>
+      </div>
+
+      <div class="header-meta">
+        <span class="chip">Algorithm X + DLX</span>
+        <span class="chip chip-quiet">v1.0</span>
+        <span class="indicator" id="header-status" data-tone="neutral" role="status">
+          <span class="dot" aria-hidden="true"></span><span id="header-status-text">Empty board</span>
+        </span>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch to light theme" title="Switch to light theme">
+          <!-- sun: shown in dark mode (click to go light) -->
+          <svg class="icon-sun" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+            <circle cx="10" cy="10" r="3.4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- moon: shown in light mode (click to go dark) -->
+          <svg class="icon-moon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+            <path d="M16.5 11.6A6.8 6.8 0 0 1 8.4 3.5a6.8 6.8 0 1 0 8.1 8.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="container">
+      <div class="workspace">
+
+        <!-- LEFT: PUZZLE CARD -->
+        <section class="panel board-panel" aria-labelledby="board-title">
+          <div class="panel-head">
+            <h2 id="board-title">Puzzle</h2>
+            <div class="utility" role="group" aria-label="Board utilities">
+              <button id="btn-reset" class="btn btn-ghost btn-sm" type="button">
+                <svg class="btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Reset
+              </button>
+              <button id="btn-clear" class="btn btn-ghost btn-sm" type="button">
+                <svg class="btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Clear board
+              </button>
+            </div>
+          </div>
+
+          <div class="grid-card">
+            <div id="sudoku-grid" class="sudoku-grid" role="grid" aria-label="Sudoku board, 9 by 9"></div>
+          </div>
+
+          <div class="grid-meta">
+            <ul class="legend" aria-label="Cell appearance">
+              <li><span class="sample sample-clue">5</span>Clue</li>
+              <li><span class="sample sample-entered">5</span>Entered</li>
+              <li><span class="sample sample-conflict">5</span>Conflict</li>
+            </ul>
+            <p class="grid-hint" title="Keyboard: arrow keys move, 1–9 enter a digit, Backspace or Delete clears a cell">
+              <kbd>←↑↓→</kbd> move <span class="sep" aria-hidden="true">·</span> <kbd>1–9</kbd> enter <span class="sep" aria-hidden="true">·</span> <kbd>⌫</kbd> clear
+            </p>
+          </div>
+
+          <div class="controls" role="group" aria-label="Puzzle controls">
+            <div class="segmented" role="group" aria-label="Load a puzzle">
+              <button id="btn-example" class="seg-btn" type="button">Load example</button>
+              <button id="btn-custom" class="seg-btn" type="button">Load custom</button>
+            </div>
+            <button id="btn-solve" class="btn btn-primary" type="button">
+              <svg class="btn-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg>
+              <span id="btn-solve-label">Solve</span>
+            </button>
+          </div>
+
+          <div id="message" class="message" data-tone="neutral" role="status" aria-live="polite">
+            <span id="message-title" class="message-title">Ready</span>
+            <span id="message-text" class="message-text"></span>
+            <div id="progress" class="progress" hidden><span></span></div>
+          </div>
+        </section>
+
+        <!-- RIGHT: TABBED INFO PANEL -->
+        <aside class="panel side-panel" aria-label="Solver information">
+          <div class="tabs" role="tablist" aria-label="Information views">
+            <button id="tab-telemetry" class="tab" role="tab" type="button" aria-selected="true" aria-controls="pane-telemetry">Telemetry</button>
+            <button id="tab-theory" class="tab" role="tab" type="button" aria-selected="false" aria-controls="pane-theory" tabindex="-1">Theory &amp; Model</button>
+          </div>
+
+          <!-- TAB 1: TELEMETRY -->
+          <div id="pane-telemetry" class="tab-pane" role="tabpanel" aria-labelledby="tab-telemetry">
+            <div class="solver-line">
+              <span class="label">Solver</span>
+              <span id="ss-solver" class="status-text" data-tone="warn">Not connected</span>
+            </div>
+
+            <div class="metrics">
+              <div class="metric">
+                <span class="metric-label">Execution time</span>
+                <span id="ss-time" class="metric-value unavailable">--</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Backtracks</span>
+                <span id="ss-backtracks" class="metric-value unavailable">--</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Nodes visited</span>
+                <span id="ss-nodes" class="metric-value unavailable">--</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Solutions found</span>
+                <span id="ss-solutions" class="metric-value unavailable">--</span>
+              </div>
+            </div>
+
+            <div class="solver-line solver-line-foot">
+              <span class="label">Recursive calls</span>
+              <span id="ss-calls" class="mono unavailable">--</span>
+            </div>
+            <p class="pane-note">Values appear after a run and reflect the backend’s real measurements.</p>
+          </div>
+
+          <!-- TAB 2: THEORY & MODEL -->
+          <div id="pane-theory" class="tab-pane" role="tabpanel" aria-labelledby="tab-theory" hidden>
+            <section class="doc-block">
+              <h3>Exact cover model</h3>
+              <dl class="stats">
+                <div><dt>Grid</dt><dd>9 × 9</dd></div>
+                <div><dt>Cells</dt><dd>81</dd></div>
+                <div><dt>Constraints</dt><dd>324</dd></div>
+                <div><dt>Placements</dt><dd>≤ 729</dd></div>
+              </dl>
+              <ul class="constraint-list">
+                <li><span class="count">81</span><span><strong>Cell</strong> One digit per cell.</span></li>
+                <li><span class="count">81</span><span><strong>Row–digit</strong> Each digit once per row.</span></li>
+                <li><span class="count">81</span><span><strong>Column–digit</strong> Each digit once per column.</span></li>
+                <li><span class="count">81</span><span><strong>Box–digit</strong> Each digit once per 3×3 box.</span></li>
+              </ul>
+              <p class="doc-note">81 + 81 + 81 + 81 = 324 constraints. At most 9 × 9 × 9 = 729 placements (row, column, digit) exist, and each satisfies exactly four constraints. These are properties of the standard formulation, not runtime measurements.</p>
+            </section>
+
+            <section class="doc-block">
+              <h3>Algorithm X</h3>
+              <p>A recursive search for an exact cover. Pick a constraint that is not yet covered, try each candidate row that covers it, and backtrack when a choice leads nowhere.</p>
+            </section>
+
+            <section class="doc-block">
+              <h3>Dancing Links</h3>
+              <p>Circular doubly linked lists let a node be unlinked and relinked in constant time, so choices are removed and restored cheaply while backtracking.</p>
+            </section>
+
+            <section class="doc-block">
+              <h3>Sudoku as exact cover</h3>
+              <p>Each candidate placement covers four constraints. A solution is a set of placements that covers all 324 constraints exactly once.</p>
+            </section>
+
+            <details class="doc-details">
+              <summary>Planned C++ backend steps</summary>
+              <ol class="steps">
+                <li>Convert Sudoku candidates into the exact-cover representation.</li>
+                <li>Construct the DLX linked structure.</li>
+                <li>Select an uncovered constraint.</li>
+                <li>Try candidate rows.</li>
+                <li>Cover constraints and recurse.</li>
+                <li>Uncover constraints when backtracking.</li>
+                <li>Return a valid solution if one exists.</li>
+              </ol>
+            </details>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- DIALOGS -->
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button class="btn" type="submit" value="cancel" autofocus>Cancel</button>
+        <button class="btn btn-danger" type="submit" value="confirm" id="confirm-ok">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="custom-dialog" class="dialog dialog-wide" aria-labelledby="custom-title" aria-describedby="custom-help">
+    <h2 id="custom-title">Load custom puzzle</h2>
+    <p id="custom-help">Enter nine lines of nine characters. Use 1–9 for clues and 0 or . for empty cells.</p>
+    <textarea id="custom-input" rows="9" spellcheck="false" autocomplete="off" aria-label="Puzzle text"
+              aria-describedby="custom-help custom-error"
+              placeholder="53..7....&#10;6..195...&#10;.98....6.&#10;8...6...3&#10;4..8.3..1&#10;7...2...6&#10;.6....28.&#10;...419..5&#10;....8..79"></textarea>
+    <p id="custom-error" class="field-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button class="btn" type="button" id="custom-cancel">Cancel</button>
+      <button class="btn btn-primary" type="button" id="custom-load">Load puzzle</button>
+    </div>
+  </dialog>
+
+  <script src="js/state.js"></script>
+  <script src="js/validation.js"></script>
+  <script src="js/grid.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/dialogs.js"></script>
+  <script src="js/status.js"></script>
+  <script src="js/solver-client.js"></script>
+  <script src="js/tabs.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
