@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdlx_core.a CMakeFiles/dlx_core.dir/src/dancing_links.cpp.o CMakeFiles/dlx_core.dir/src/sudoku_solver.cpp.o
+/usr/bin/ranlib libdlx_core.a

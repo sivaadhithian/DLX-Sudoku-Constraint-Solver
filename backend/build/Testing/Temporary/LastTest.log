@@ -1,0 +1,30 @@
+Start testing: Oct 19 22:49 IST
+----------------------------------------------------------
+1/1 Testing: sudoku_tests
+1/1 Test: sudoku_tests
+Command: "/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/bin/test_sudoku"
+Directory: /Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build
+"sudoku_tests" start time: Oct 19 22:49 IST
+Output:
+----------------------------------------------------------
+[PASS] classic_unique
+[PASS] already_complete
+[PASS] hard_inkala
+[PASS] empty_board
+[PASS] first_row_only
+[PASS] dead_cell
+[PASS] row_conflict
+[PASS] column_conflict
+[PASS] box_conflict
+[PASS] too_short
+[PASS] bad_character
+11 passed, 0 failed
+<end of output>
+Test time =   0.55 sec
+----------------------------------------------------------
+Test Passed.
+"sudoku_tests" end time: Oct 19 22:49 IST
+"sudoku_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Oct 19 22:49 IST

@@ -1,0 +1,6 @@
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/dlx_core.dir
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/sudoku_solver.dir
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/test_sudoku.dir
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/test.dir
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/edit_cache.dir
+/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/backend/build/CMakeFiles/rebuild_cache.dir

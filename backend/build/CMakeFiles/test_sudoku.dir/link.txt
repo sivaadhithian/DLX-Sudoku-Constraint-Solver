@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/test_sudoku.dir/Users/sivaadhithian/Downloads/DLX-Sudoku-Constraint-Solver-main/tests/test_sudoku.cpp.o" -o bin/test_sudoku  libdlx_core.a
