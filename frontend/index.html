@@ -113,11 +113,18 @@
               <button id="pb-play" class="btn btn-sm" type="button" aria-label="Pause replay">Pause</button>
               <button id="pb-step" class="btn btn-sm" type="button" aria-label="Step one move">Step</button>
               <button id="pb-end" class="btn btn-sm" type="button" aria-label="Skip to the end">Skip to end</button>
-              <label class="pb-speed"><span>Speed</span><input id="pb-speed" type="range" min="1" max="8" value="4" aria-label="Replay speed"></label>
+              <div id="pb-speed" class="pb-speed" role="radiogroup" aria-label="Replay speed">
+                <span class="pb-speed-label">Speed</span>
+                <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="0.5">0.5×</button>
+                <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="0.75">0.75×</button>
+                <button class="speed-btn" type="button" role="radio" aria-checked="true" data-speed="1">1×</button>
+                <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="1.5">1.5×</button>
+                <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="2">2×</button>
+              </div>
               <button id="pb-close" class="btn btn-ghost btn-sm" type="button">Close</button>
             </div>
             <p id="pb-readout" class="pb-readout" aria-live="off"></p>
-            <p class="pb-note">Illustrative replay of Algorithm X running in the UI. Telemetry still comes only from the solver backend.</p>
+            <p class="pb-note">Illustrative replay of Algorithm X running in the UI. 1× is one move per second. Telemetry still comes only from the solver backend.</p>
           </div>
 
           <div class="grid-card">
@@ -154,7 +161,25 @@
           </div>
         </section>
 
-        <!-- RIGHT: TABBED INFO PANEL -->
+        <!-- RIGHT COLUMN -->
+        <div class="side-col">
+
+        <!-- Step explanations (visible only during a replay) -->
+        <section id="explain" class="panel explain" aria-labelledby="explain-title" hidden>
+          <div class="explain-head">
+            <h2 id="explain-title">Step explanation</h2>
+            <span id="ex-step" class="badge"></span>
+          </div>
+          <p id="ex-title" class="ex-title"></p>
+          <div class="ex-body">
+            <div id="ex-box" class="ex-box" hidden></div>
+            <dl id="ex-sections" class="ex-sections"></dl>
+          </div>
+          <h3 class="ex-log-title">Step log</h3>
+          <ol id="ex-log" class="ex-log"></ol>
+        </section>
+
+        <!-- TABBED INFO PANEL -->
         <aside class="panel side-panel" aria-label="Solver information">
           <div class="tabs" role="tablist" aria-label="Information views">
             <button id="tab-telemetry" class="tab" role="tab" type="button" aria-selected="true" aria-controls="pane-telemetry">Telemetry</button>
@@ -261,6 +286,7 @@
           </div>
         </aside>
 
+        </div>
       </div>
     </div>
   </main>
@@ -302,6 +328,7 @@
   <script src="js/runs.js"></script>
   <script src="js/export.js"></script>
   <script src="js/dlx-trace.js"></script>
+  <script src="js/explain.js"></script>
   <script src="js/playback.js"></script>
   <script src="js/status.js"></script>
   <script src="js/solver-client.js"></script>

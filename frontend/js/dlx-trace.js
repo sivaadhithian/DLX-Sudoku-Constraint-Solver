@@ -1,10 +1,16 @@
-/* Algorithm X on Dancing Links that RECORDS its moves, for the visual replay only.
+/* Algorithm X on Dancing Links that RECORDS its moves (and the reason for each), for the
+ * visual replay and its explanations only.
  *
  * This is an illustration that runs in the browser. It never sets the board's solution and
  * never feeds the telemetry tiles; those come exclusively from the real solver backend.
  *
  * Event encoding (ints): kind * 729 + (row * 9 + col) * 9 + (digit - 1)
- *   kind 0 = try a placement, kind 1 = undo it (backtrack). */
+ *   kind 0 = try a placement, kind 1 = undo it (backtrack).
+ *
+ * Parallel metadata arrays (same index as events):
+ *   try  : cols[i] = constraint column Algorithm X chose, as[i] = options it had, bs[i] = which option (1-based)
+ *   undo : cols[i] = column of the dead end (-1 if unknown), as[i] = 1 no option left / 2 all options failed,
+ *          bs[i] = 1 if another option remains for the same constraint */
 (function () {
   'use strict';
   const DLX = window.DLX;
@@ -61,31 +67,35 @@
       for (let j = R[node]; j !== node; j = R[j]) cover(C[j]);
     }
 
-    const events = [];
+    const events = [], cols = [], as = [], bs = [];
     let tries = 0, undos = 0;
+    let failCol = -1, failType = 0; // why the most recent search() call returned 0
     // 0 = dead end, 1 = solved, 2 = aborted (trace too long)
     function search() {
       if (R[root] === root) return 1;
       let col = R[root], best = S[col];
       for (let c = R[col]; c !== root; c = R[c]) if (S[c] < best) { best = S[c]; col = c; }
-      if (best === 0) return 0;
+      if (best === 0) { failCol = col; failType = 1; return 0; }
 
       cover(col);
+      let option = 0;
       for (let r = D[col]; r !== col; r = D[r]) {
         if (events.length >= maxEvents) return 2;
-        events.push(rowOf[r]); tries++;
+        option++;
+        events.push(rowOf[r]); cols.push(col); as.push(best); bs.push(option); tries++;
         for (let j = R[r]; j !== r; j = R[j]) cover(C[j]);
         const res = search();
         if (res !== 0) return res;
         for (let j = L[r]; j !== r; j = L[j]) uncover(C[j]);
-        events.push(729 + rowOf[r]); undos++;
+        events.push(729 + rowOf[r]); cols.push(failCol); as.push(failType); bs.push(D[r] !== col ? 1 : 0); undos++;
       }
       uncover(col);
+      failCol = col; failType = 2;
       return 0;
     }
 
     const result = search();
-    return { events, solved: result === 1, truncated: result === 2, tries, undos };
+    return { events, cols, as, bs, solved: result === 1, truncated: result === 2, tries, undos, givens: givenNodes.length };
   }
 
   DLX.buildTrace = buildTrace;

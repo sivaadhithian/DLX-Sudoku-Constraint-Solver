@@ -20,7 +20,6 @@
     const btn = document.getElementById('theme-toggle');
     if (!btn) return;
     const next = theme === 'dark' ? 'light' : 'dark';
-    if (window.appShell) window.appShell.setTheme(theme).catch(() => {}); // native window background
     btn.setAttribute('aria-label', `Switch to ${next} theme`);
     btn.title = `Switch to ${next} theme`;
   }

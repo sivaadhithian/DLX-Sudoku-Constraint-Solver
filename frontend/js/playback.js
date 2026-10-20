@@ -1,24 +1,26 @@
-/* Visual replay of Algorithm X on the board. The replay works on its own copy of the grid and
- * paints cells directly; the real board state is untouched and is redrawn when it closes. */
+/* Visual replay of Algorithm X on the board, with a step-by-step explanation panel.
+ * The replay works on its own copy of the grid and paints cells directly; the real board
+ * state is untouched and is redrawn when the replay closes. */
 (function () {
   'use strict';
   const DLX = window.DLX;
   const { SIZE } = DLX.constants;
   const $ = (id) => document.getElementById(id);
 
-  // Speed slider position (1-8) -> events per second.
-  const RATES = [0, 2, 5, 12, 30, 90, 300, 1200, 6000];
-  const FLASH_BELOW_RATE = 100; // only flash backtracks when slow enough to see them
+  const BASE_RATE = 1;      // steps per second at 1x, slow enough to read each explanation
+  const LOG_MAX = 60;
 
-  let trace = null;   // { events, solved, truncated, tries, undos }
+  let trace = null;   // { events, cols, as, bs, solved, truncated, tries, undos, givens }
   let grid = null;    // replay grid
   let given = null;   // which cells are original givens
   let pos = 0;        // events applied so far
-  let tries = 0, undos = 0;
-  let playing = false;
+  let tries = 0, undos = 0, filled = 0;
+  let speed = 1;      // multiplier: 0.5, 0.75, 1, 1.5, 2
+  let playing = false, finished = false;
   let raf = 0, lastT = 0, carry = 0;
+  let logCount = 0;
 
-  const rate = () => RATES[Number($('pb-speed').value)] || RATES[4];
+  const fmt = (n) => n.toLocaleString('en-US');
 
   function decode(ev) {
     const kind = ev >= 729 ? 1 : 0;
@@ -28,6 +30,7 @@
     return { kind, r: Math.floor(cell / SIZE), c: cell % SIZE, digit };
   }
 
+  /* ---------- grid painting ---------- */
   function paint(r, c, flash) {
     const el = DLX.getCellEl(r, c);
     const v = grid[r][c];
@@ -37,53 +40,131 @@
     el.classList.remove('bt', 'reveal');
     if (flash) { void el.offsetWidth; el.classList.add('bt'); }
   }
-
   function paintAll() {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) paint(r, c, false);
   }
 
-  function readout(text) {
-    $('pb-readout').textContent = text ||
-      `Step ${pos.toLocaleString('en-US')} of ${trace.events.length.toLocaleString('en-US')} · ${tries.toLocaleString('en-US')} tries · ${undos.toLocaleString('en-US')} backtracks`;
+  /** Tint the box and the row/column of the active step so "where" is obvious. */
+  function clearFocus() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) DLX.getCellEl(r, c).classList.remove('ex-focus', 'ex-box', 'ex-line');
+  }
+  function setFocus(r, c) {
+    clearFocus();
+    if (r < 0) return;
+    const br = r - (r % 3), bc = c - (c % 3);
+    for (let i = 0; i < SIZE; i++) {
+      for (let j = 0; j < SIZE; j++) {
+        const inBox = i >= br && i < br + 3 && j >= bc && j < bc + 3;
+        const el = DLX.getCellEl(i, j);
+        if (inBox) el.classList.add('ex-box');
+        else if (i === r || j === c) el.classList.add('ex-line');
+      }
+    }
+    DLX.getCellEl(r, c).classList.add('ex-focus');
+  }
+
+  /* ---------- explanation panel ---------- */
+  function renderMiniBox(exp) {
+    const wrap = $('ex-box');
+    wrap.textContent = '';
+    wrap.hidden = exp.box < 0;
+    if (exp.box < 0) return;
+    const label = document.createElement('p');
+    label.className = 'ex-box-label';
+    label.textContent = DLX.explain.boxLabel(exp.box);
+    const mini = document.createElement('div');
+    mini.className = 'mini-box';
+    for (const cell of DLX.explain.boxCells(grid, exp.r, exp.c)) {
+      const span = document.createElement('span');
+      span.textContent = cell.v ? String(cell.v) : '';
+      if (cell.r === exp.r && cell.c === exp.c) span.className = exp.kind === 'place' ? 'mini-new' : 'mini-removed';
+      else if (given[cell.r][cell.c]) span.className = 'mini-given';
+      mini.appendChild(span);
+    }
+    wrap.append(label, mini);
+  }
+
+  function showExplanation(exp, { log = true } = {}) {
+    $('ex-title').textContent = exp.title;
+    $('ex-title').dataset.kind = exp.kind;
+    const dl = $('ex-sections');
+    dl.textContent = '';
+    for (const [label, text] of exp.sections) {
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.textContent = text;
+      dl.append(dt, dd);
+    }
+    renderMiniBox(exp);
+    setFocus(exp.r, exp.c);
+    $('ex-step').textContent = trace ? `Step ${fmt(pos)} / ${fmt(trace.events.length)}` : '';
+
+    if (log && (exp.kind === 'place' || exp.kind === 'undo' || exp.kind === 'done')) {
+      const li = document.createElement('li');
+      li.dataset.kind = exp.kind;
+      const n = document.createElement('span');
+      n.className = 'ex-log-n';
+      n.textContent = exp.kind === 'done' ? '✓' : `#${fmt(pos)}`;
+      const t = document.createElement('span');
+      t.textContent = exp.kind === 'place' ? `Placed ${exp.d} at ${DLX.explain.short(exp.r, exp.c)}`
+        : exp.kind === 'undo' ? `Backtracked ${exp.d} from ${DLX.explain.short(exp.r, exp.c)}`
+        : exp.title;
+      li.append(n, t);
+      const list = $('ex-log');
+      list.prepend(li);
+      logCount++;
+      while (list.children.length > LOG_MAX) list.lastElementChild.remove();
+    }
+  }
+
+  function readout() {
+    $('pb-readout').textContent = `Step ${fmt(pos)} of ${fmt(trace.events.length)} · ${fmt(tries)} tries · ${fmt(undos)} backtracks`;
+  }
+
+  /* ---------- stepping ---------- */
+  function applyOne(explain) {
+    const { kind, r, c, digit } = decode(trace.events[pos]);
+    let exp = null;
+    if (kind === 0) {
+      if (explain) exp = DLX.explain.explainTry({ grid, r, c, d: digit, col: trace.cols[pos], options: trace.as[pos], option: trace.bs[pos], filled });
+      grid[r][c] = digit; filled++; tries++;
+    } else {
+      grid[r][c] = 0; filled--; undos++;
+      if (explain) exp = DLX.explain.explainUndo({ grid, r, c, d: digit, failCol: trace.cols[pos], failType: trace.as[pos], more: trace.bs[pos] === 1 });
+    }
+    pos++;
+    if (explain) { paint(r, c, kind === 1); showExplanation(exp); }
   }
 
   function finish() {
     pause();
+    finished = true;
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (!given[r][c] && grid[r][c]) DLX.getCellEl(r, c).dataset.kind = trace.solved ? 'solved' : 'trying';
-    readout(`${trace.solved ? 'Replay finished: a solution was reached' : 'Trace stopped early (limit reached)'} · ${tries.toLocaleString('en-US')} tries · ${undos.toLocaleString('en-US')} backtracks`);
-    $('pb-play').disabled = true;
-    $('pb-step').disabled = true;
-    $('pb-end').disabled = true;
-  }
-
-  function applyOne(flash) {
-    const { kind, r, c, digit } = decode(trace.events[pos]);
-    grid[r][c] = kind === 0 ? digit : 0;
-    if (kind === 0) tries++; else undos++;
-    pos++;
-    if (flash !== null) paint(r, c, kind === 1 && flash);
+    showExplanation(DLX.explain.explainDone({ solved: trace.solved, truncated: trace.truncated, tries, undos }));
+    clearFocus();
+    readout();
+    for (const id of ['pb-play', 'pb-step', 'pb-end']) $(id).disabled = true;
   }
 
   function frame(t) {
     if (!playing) return;
-    carry += ((t - lastT) / 1000) * rate();
+    carry += ((t - lastT) / 1000) * BASE_RATE * speed;
     lastT = t;
-    const n = Math.floor(carry);
-    if (n > 0) {
-      carry -= n;
-      const flash = rate() < FLASH_BELOW_RATE;
-      for (let i = 0; i < n && pos < trace.events.length; i++) applyOne(flash);
-      if (pos >= trace.events.length) { readout(); finish(); return; }
+    if (carry >= 1) {
+      carry -= 1;
+      if (pos < trace.events.length) applyOne(true);
       readout();
+      if (pos >= trace.events.length) { finish(); return; }
     }
     raf = requestAnimationFrame(frame);
   }
 
   function play() {
-    if (playing || pos >= trace.events.length) return;
+    if (playing || finished) return;
     playing = true;
     lastT = performance.now();
-    carry = 0;
+    carry = 1; // take the first step right away
     $('pb-play').textContent = 'Pause';
     $('pb-play').setAttribute('aria-label', 'Pause replay');
     raf = requestAnimationFrame(frame);
@@ -104,12 +185,24 @@
 
   function toEnd() {
     pause();
-    while (pos < trace.events.length) applyOne(null); // no painting while skipping
+    const skipped = trace.events.length - pos;
+    while (pos < trace.events.length) applyOne(false); // no painting or text while skipping
     paintAll();
-    readout();
+    if (skipped > 0) {
+      const li = document.createElement('li');
+      li.dataset.kind = 'skip';
+      li.textContent = `Skipped ${fmt(skipped)} step${skipped === 1 ? '' : 's'}`;
+      $('ex-log').prepend(li);
+    }
     finish();
   }
 
+  function setSpeed(value) {
+    speed = value;
+    for (const b of document.querySelectorAll('.speed-btn')) b.setAttribute('aria-checked', String(Number(b.dataset.speed) === value));
+  }
+
+  /* ---------- open / close ---------- */
   function open() {
     if (DLX.state.playback || DLX.state.status === 'solving') return;
     const assessment = DLX.assessBoard(DLX.state.grid);
@@ -119,23 +212,27 @@
     // Any digits on the board are treated as givens for the replay.
     const puzzle = DLX.cloneGrid(DLX.state.grid);
     trace = DLX.buildTrace(puzzle);
-    grid = DLX.cloneGrid(puzzle);
-    given = puzzle.map((row) => row.map((v) => v !== 0));
-    pos = tries = undos = 0;
-
     if (!trace.solved && !trace.truncated) {
+      trace = null;
       DLX.toast('Algorithm X found no solution for this board.', { tone: 'bad' });
       return;
     }
+    grid = DLX.cloneGrid(puzzle);
+    given = puzzle.map((row) => row.map((v) => v !== 0));
+    pos = tries = undos = 0;
+    filled = trace.givens;
+    finished = false;
+    logCount = 0;
 
     DLX.state.playback = true;
     document.body.dataset.playback = 'on';
     $('playback').hidden = false;
-    $('pb-play').disabled = false;
-    $('pb-step').disabled = false;
-    $('pb-end').disabled = false;
+    $('explain').hidden = false;
+    $('ex-log').textContent = '';
+    for (const id of ['pb-play', 'pb-step', 'pb-end']) $(id).disabled = false;
     paintAll();
     readout();
+    showExplanation(DLX.explain.explainStart({ givens: trace.givens }), { log: false });
     document.dispatchEvent(new CustomEvent('dlx:playback'));
     play();
   }
@@ -143,9 +240,11 @@
   function close() {
     if (!DLX.state.playback) return;
     pause();
+    clearFocus();
     DLX.state.playback = false;
     document.body.dataset.playback = '';
     $('playback').hidden = true;
+    $('explain').hidden = true;
     trace = null;
     DLX.renderGrid();
     document.dispatchEvent(new CustomEvent('dlx:playback'));
@@ -157,6 +256,8 @@
     $('pb-step').addEventListener('click', step);
     $('pb-end').addEventListener('click', toEnd);
     $('pb-close').addEventListener('click', close);
+    for (const b of document.querySelectorAll('.speed-btn')) b.addEventListener('click', () => setSpeed(Number(b.dataset.speed)));
+    setSpeed(1);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && DLX.state.playback && !document.querySelector('dialog[open]')) close();
     });
