@@ -2,6 +2,7 @@
  *
  *   grid      9x9 ints, 0 = empty   everything currently on the board
  *   original  9x9 ints              the loaded puzzle's clues (all zeros if none loaded)
+ *   notes     9x9 bitmasks          pencil marks (bit d set = digit d is a candidate note)
  *   solution  9x9 ints | null       a genuine backend result; never generated here
  *
  * A cell is a locked CLUE when original[r][c] is non-zero. Other non-empty cells are
@@ -39,7 +40,10 @@
   const state = {
     grid: createEmptyGrid(),
     original: createEmptyGrid(),
+    notes: createEmptyGrid(),
     solution: null,
+    pencil: false,   // notes mode on/off (UI mode, not part of undo history)
+    playback: false, // true while the visual replay owns the grid
     selected: { row: 4, col: 4 },
     status: 'empty', // see STATUS in status.js
   };
@@ -63,8 +67,10 @@
   }
 
   const hasUserInput = () => getCounts().entered > 0;
-  const canReset = () => hasUserInput() || state.solution !== null;
-  const canClear = () => !isGridEmpty(state.grid) || state.solution !== null;
+  const hasNotes = () => state.notes.some((row) => row.some((v) => v !== 0));
+  const getNotes = (r, c) => state.notes[r][c];
+  const canReset = () => hasUserInput() || hasNotes() || state.solution !== null;
+  const canClear = () => !isGridEmpty(state.grid) || hasNotes() || state.solution !== null;
 
   /* ----- Writes ----- */
   /** Returns false (and changes nothing) when the cell is a locked clue. */
@@ -72,20 +78,62 @@
     if (isClue(r, c)) return false;
     state.grid[r][c] = value;
     state.solution = null; // any edit invalidates a displayed solution
+    if (value !== 0) {
+      state.notes[r][c] = 0;
+      removeNoteFromPeers(r, c, value); // keep pencil marks honest
+    }
+    return true;
+  }
+
+  function removeNoteFromPeers(r, c, digit) {
+    const bit = ~(1 << digit);
+    const br = r - (r % BOX);
+    const bc = c - (c % BOX);
+    for (let i = 0; i < SIZE; i++) {
+      state.notes[r][i] &= bit;
+      state.notes[i][c] &= bit;
+    }
+    for (let i = br; i < br + BOX; i++) for (let j = bc; j < bc + BOX; j++) state.notes[i][j] &= bit;
+  }
+
+  /** Toggle one pencil mark. Only empty, non-clue cells can hold notes. */
+  function toggleNote(r, c, digit) {
+    if (isClue(r, c) || getValue(r, c) !== 0) return false;
+    state.notes[r][c] ^= 1 << digit;
+    return true;
+  }
+  function clearNotes(r, c) {
+    if (state.notes[r][c] === 0) return false;
+    state.notes[r][c] = 0;
     return true;
   }
   function loadPuzzle(grid) {
     state.grid = cloneGrid(grid);
     state.original = cloneGrid(grid);
+    state.notes = createEmptyGrid();
     state.solution = null;
   }
   function resetToOriginal() {
     state.grid = cloneGrid(state.original);
+    state.notes = createEmptyGrid();
     state.solution = null;
   }
   function clearAll() {
     state.grid = createEmptyGrid();
     state.original = createEmptyGrid();
+    state.notes = createEmptyGrid();
+    state.solution = null;
+  }
+  const setPencil = (on) => { state.pencil = Boolean(on); };
+
+  /** Undo/redo snapshots. A displayed solution is a view, not an edit, so it is excluded. */
+  function snapshot() {
+    return { grid: cloneGrid(state.grid), original: cloneGrid(state.original), notes: cloneGrid(state.notes) };
+  }
+  function restore(snap) {
+    state.grid = cloneGrid(snap.grid);
+    state.original = cloneGrid(snap.original);
+    state.notes = cloneGrid(snap.notes);
     state.solution = null;
   }
   function setSolution(solution) {
@@ -94,6 +142,7 @@
 
   Object.assign(DLX, {
     state, cloneGrid, isGridEmpty, getValue, isClue, getCellKind, getCounts,
-    hasUserInput, canReset, canClear, setCellValue, loadPuzzle, resetToOriginal, clearAll, setSolution,
+    hasUserInput, hasNotes, getNotes, canReset, canClear, setCellValue, toggleNote, clearNotes, setPencil,
+    loadPuzzle, resetToOriginal, clearAll, setSolution, snapshot, restore,
   });
 })();

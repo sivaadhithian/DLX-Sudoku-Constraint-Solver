@@ -29,7 +29,7 @@
 
   /** Digits, Backspace/Delete, and rejection of everything else that is printable. */
   function handleCellInput(event, handlers) {
-    if (DLX.state.status === 'solving') return; // read-only while a solve is pending
+    if (DLX.state.status === 'solving' || DLX.state.playback) return; // read-only while busy
 
     const intent = DLX.interpretKey(event);
     if (intent.action === 'ignore') return;
@@ -46,6 +46,16 @@
       return;
     }
 
+    if (DLX.state.pencil) {
+      // Notes mode: digits toggle pencil marks; Backspace clears notes first, then the value.
+      if (intent.action === 'set') {
+        if (DLX.getValue(row, col) !== 0) handlers.onRejected('This cell already has a digit. Clear it first to add notes.');
+        else if (DLX.toggleNote(row, col, intent.digit)) handlers.onEdit();
+        return;
+      }
+      if (DLX.clearNotes(row, col)) { handlers.onEdit(); return; }
+    }
+
     const newValue = intent.action === 'set' ? intent.digit : 0;
     const unchanged = DLX.state.solution === null && DLX.state.grid[row][col] === newValue;
     if (unchanged) return;
@@ -55,6 +65,12 @@
 
   function attachGridInput(container, handlers) {
     container.addEventListener('keydown', (event) => {
+      if (DLX.state.playback) return;
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        handlers.onToggleNotes();
+        return;
+      }
       if (handleKeyboardNavigation(event)) return;
       handleCellInput(event, handlers);
     });

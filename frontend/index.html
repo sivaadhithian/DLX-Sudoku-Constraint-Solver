@@ -36,6 +36,12 @@
         <span class="indicator" id="header-status" data-tone="neutral" role="status">
           <span class="dot" aria-hidden="true"></span><span id="header-status-text">Empty board</span>
         </span>
+        <button id="present-toggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Presentation mode" title="Presentation mode (P)">
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+            <rect x="2.5" y="3.5" width="15" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 17h6M10 13.5V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
         <button id="theme-toggle" class="icon-btn" type="button" aria-label="Switch to light theme" title="Switch to light theme">
           <!-- sun: shown in dark mode (click to go light) -->
           <svg class="icon-sun" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
@@ -58,7 +64,10 @@
         <!-- LEFT: PUZZLE CARD -->
         <section class="panel board-panel" aria-labelledby="board-title">
           <div class="panel-head">
-            <h2 id="board-title">Puzzle</h2>
+            <div class="title-group">
+              <h2 id="board-title">Puzzle</h2>
+              <span id="clue-badge" class="badge" hidden></span>
+            </div>
             <div class="utility" role="group" aria-label="Board utilities">
               <button id="btn-reset" class="btn btn-ghost btn-sm" type="button">
                 <svg class="btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -71,6 +80,46 @@
             </div>
           </div>
 
+          <div class="toolbar" role="toolbar" aria-label="Board tools">
+            <div class="tool-group">
+              <button id="btn-undo" class="icon-btn icon-btn-sm" type="button" aria-label="Undo" title="Undo (Ctrl+Z)">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><path d="M6 3 3 6l3 3M3 6h6.5a3.5 3.5 0 0 1 0 7H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button id="btn-redo" class="icon-btn icon-btn-sm" type="button" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><path d="m10 3 3 3-3 3M13 6H6.5a3.5 3.5 0 0 0 0 7H9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button id="btn-notes" class="tool-btn" type="button" aria-pressed="false" title="Pencil marks (N)">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="m10.5 3 2.5 2.5L6 12.5 3 13l.5-3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                Notes
+              </button>
+            </div>
+            <div class="tool-group">
+              <button id="btn-copy" class="icon-btn icon-btn-sm" type="button" aria-label="Copy puzzle" title="Copy puzzle as text">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><rect x="5.5" y="5.5" width="7.5" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 3.5h-6A1.5 1.5 0 0 0 3 5v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+              <button id="btn-paste" class="icon-btn icon-btn-sm" type="button" aria-label="Paste puzzle" title="Paste a puzzle (or press Ctrl+V on the board)">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 3.5V2.5h4v1M6 8h4M6 10.5h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+              <button id="btn-visualize" class="tool-btn" type="button" title="Replay Algorithm X step by step">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.7 5.6v4.8L10.6 8z" fill="currentColor"/></svg>
+                Visualize
+              </button>
+            </div>
+          </div>
+
+          <!-- Visual replay controls (shown only while a replay is open) -->
+          <div id="playback" class="playback" role="group" aria-label="Algorithm X replay" hidden>
+            <div class="pb-row">
+              <button id="pb-play" class="btn btn-sm" type="button" aria-label="Pause replay">Pause</button>
+              <button id="pb-step" class="btn btn-sm" type="button" aria-label="Step one move">Step</button>
+              <button id="pb-end" class="btn btn-sm" type="button" aria-label="Skip to the end">Skip to end</button>
+              <label class="pb-speed"><span>Speed</span><input id="pb-speed" type="range" min="1" max="8" value="4" aria-label="Replay speed"></label>
+              <button id="pb-close" class="btn btn-ghost btn-sm" type="button">Close</button>
+            </div>
+            <p id="pb-readout" class="pb-readout" aria-live="off"></p>
+            <p class="pb-note">Illustrative replay of Algorithm X running in the UI. Telemetry still comes only from the solver backend.</p>
+          </div>
+
           <div class="grid-card">
             <div id="sudoku-grid" class="sudoku-grid" role="grid" aria-label="Sudoku board, 9 by 9"></div>
           </div>
@@ -81,10 +130,11 @@
               <li><span class="sample sample-entered">5</span>Entered</li>
               <li><span class="sample sample-conflict">5</span>Conflict</li>
             </ul>
-            <p class="grid-hint" title="Keyboard: arrow keys move, 1–9 enter a digit, Backspace or Delete clears a cell">
-              <kbd>←↑↓→</kbd> move <span class="sep" aria-hidden="true">·</span> <kbd>1–9</kbd> enter <span class="sep" aria-hidden="true">·</span> <kbd>⌫</kbd> clear
+            <p class="grid-hint" title="Keyboard: arrow keys move, 1–9 enter a digit, N toggles notes, Backspace or Delete clears a cell, Ctrl+Z / Ctrl+Shift+Z undo and redo, P presentation mode">
+              <kbd>←↑↓→</kbd> move <span class="sep" aria-hidden="true">·</span> <kbd>1–9</kbd> enter <span class="sep" aria-hidden="true">·</span> <kbd>N</kbd> notes <span class="sep" aria-hidden="true">·</span> <kbd>⌫</kbd> clear
             </p>
           </div>
+
 
           <div class="controls" role="group" aria-label="Puzzle controls">
             <div class="segmented" role="group" aria-label="Load a puzzle">
@@ -122,18 +172,22 @@
               <div class="metric">
                 <span class="metric-label">Execution time</span>
                 <span id="ss-time" class="metric-value unavailable">--</span>
+                <span id="ss-time-delta" class="metric-delta" data-trend=""></span>
               </div>
               <div class="metric">
                 <span class="metric-label">Backtracks</span>
                 <span id="ss-backtracks" class="metric-value unavailable">--</span>
+                <span id="ss-backtracks-delta" class="metric-delta" data-trend=""></span>
               </div>
               <div class="metric">
                 <span class="metric-label">Nodes visited</span>
                 <span id="ss-nodes" class="metric-value unavailable">--</span>
+                <span id="ss-nodes-delta" class="metric-delta" data-trend=""></span>
               </div>
               <div class="metric">
                 <span class="metric-label">Solutions found</span>
                 <span id="ss-solutions" class="metric-value unavailable">--</span>
+                <span class="metric-delta" aria-hidden="true"></span>
               </div>
             </div>
 
@@ -141,7 +195,21 @@
               <span class="label">Recursive calls</span>
               <span id="ss-calls" class="mono unavailable">--</span>
             </div>
-            <p class="pane-note">Values appear after a run and reflect the backend’s real measurements.</p>
+            <section class="history" aria-labelledby="history-title">
+              <div class="history-head">
+                <h3 id="history-title">Run history</h3>
+                <button id="run-clear" class="btn btn-ghost btn-sm" type="button" hidden>Clear</button>
+              </div>
+              <svg id="run-spark" class="spark" viewBox="0 0 240 48" role="img" aria-label="Execution time of recent runs" hidden></svg>
+              <p id="run-spark-empty" class="pane-note">Run at least twice to see an execution-time trend.</p>
+              <ul id="run-list" class="run-list"></ul>
+              <p id="run-empty" class="pane-note">No runs yet. Values appear after a run and reflect the backend’s real measurements.</p>
+            </section>
+
+            <div class="export-row">
+              <button id="btn-copy-metrics" class="btn btn-sm" type="button">Copy metrics</button>
+              <button id="btn-export-png" class="btn btn-sm" type="button">Save PNG</button>
+            </div>
           </div>
 
           <!-- TAB 2: THEORY & MODEL -->
@@ -197,6 +265,8 @@
     </div>
   </main>
 
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
   <!-- DIALOGS -->
   <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
     <form method="dialog">
@@ -211,7 +281,7 @@
 
   <dialog id="custom-dialog" class="dialog dialog-wide" aria-labelledby="custom-title" aria-describedby="custom-help">
     <h2 id="custom-title">Load custom puzzle</h2>
-    <p id="custom-help">Enter nine lines of nine characters. Use 1–9 for clues and 0 or . for empty cells.</p>
+    <p id="custom-help">Enter nine lines of nine characters, or one line of 81. Use 1–9 for clues and 0 or . for empty cells.</p>
     <textarea id="custom-input" rows="9" spellcheck="false" autocomplete="off" aria-label="Puzzle text"
               aria-describedby="custom-help custom-error"
               placeholder="53..7....&#10;6..195...&#10;.98....6.&#10;8...6...3&#10;4..8.3..1&#10;7...2...6&#10;.6....28.&#10;...419..5&#10;....8..79"></textarea>
@@ -227,6 +297,12 @@
   <script src="js/grid.js"></script>
   <script src="js/input.js"></script>
   <script src="js/dialogs.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/runs.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/dlx-trace.js"></script>
+  <script src="js/playback.js"></script>
   <script src="js/status.js"></script>
   <script src="js/solver-client.js"></script>
   <script src="js/tabs.js"></script>
