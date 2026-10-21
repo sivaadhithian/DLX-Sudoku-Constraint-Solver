@@ -1,0 +1,34 @@
+FRONT END ISSUES AND SUGGESTIONS 
+
+
+1. Explaining how the board gets solved
+
+Right now the app just places numbers on the grid with no explanation. 
+Users can't tell why a number goes in a specific spot or why it had to backtrack. We should add a step log that explains simple moves like Naked or Hidden Singles, 
+shows why a number fits its row/column/box, and highlights backtracking steps. Also, adding back and next buttons will help people step through the logic slowly.
+
+2. Generating random puzzles
+
+The app relies too much on hardcoded puzzles, so testing different inputs means typing every number by hand. 
+We need a random generator with Easy, Medium, and Hard options. It must check that every puzzle has only one solution, and show a quick message if it takes too long to find one.
+
+3. Better difficulty levels
+
+Counting clues isn't enough to set difficulty because a 30-clue puzzle can be harder than a 25-clue one. 
+We should base difficulty on the techniques needed to solve the board instead of just clue count. If a generated board is slightly off, we can just mark it as an approximate match in the UI.
+
+4. Separate Solve from Visualize
+
+we can have two modes , one for solving and the other for viusalizing the problem
+
+5. Better error handling
+
+If an API, the UI gets stuck loading and buttons stay disabled. We need to wrap these requests in try/catch/finally blocks so spinners reset and controls get re-enabled no matter what happens. 
+We should also show clear error messages for invalid boards or bad connections. This enables for easier developemnent during the testing process as any error which may occur be identified easily and rectified
+with proper measures.
+
+7. Code structure
+
+we can organize the code structure so that , it gets easier to integrate between each parts of the code and in between the frontend and the backend as 
+disorganized codes can lead to irregular and unclear integration
+  idhu okay vaa??
