@@ -1,0 +1,11 @@
+UI Responsiveness & Puzzle Generation: Generating puzzles now runs in a background thread, preventing the interface from freezing for 2.5 seconds. The "Load example" button has been replaced with a progress bar and a cancel button, inputs stay disabled during generation to protect board state, and a fallback mechanism handles systems without background thread support.
+
+Status Reporting & Matching: The single true/false accurate flag is replaced with detailed status updates (exact, approximate, failed, canceled). Near-miss results trigger clear pop-up notifications, and a scoring system selects the best partial match when testing rules and clue limits.
+
+State Architecture & Bound Checks: Range labels in the interface now automatically sync with generator configuration levels. Puzzles pasted by users are handled smoothly, and search steps are limited to 60,000 operations to prevent infinite loops or crashes.
+
+Interactive Verification & Accessibility: The answer-checking feature verifies user entries, locks correct numbers in place, and logs errors. It disables verification on invalid pasted puzzles, updates screen reader announcements, and honors user animation reduction settings.
+
+History & Log Performance: Peeking into the history log prevents undo actions from unlocking previously verified cells. Event logs are capped at 20,000 total items while rendering only the most recent 150 items on screen to maintain smooth performance and conserve memory.
+
+Error Handling & Testing: Log labels were clarified to distinguish between browser execution and reconstructed explanations. Solver actions are enclosed in safety blocks to prevent frozen controls, and a node-based test suite validates solver rules and trace output.
