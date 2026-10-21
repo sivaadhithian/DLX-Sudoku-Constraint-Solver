@@ -22,6 +22,8 @@
     notify();
   }
 
+  /** The snapshot undo (-1) or redo (+1) would restore, without restoring it. */
+  const peek = (dir) => stack[index + dir] || null;
   const canUndo = () => index > 0;
   const canRedo = () => index >= 0 && index < stack.length - 1;
 
@@ -40,5 +42,5 @@
     return true;
   }
 
-  DLX.history = { commit, undo, redo, canUndo, canRedo, onChange: (fn) => listeners.push(fn) };
+  DLX.history = { commit, undo, redo, peek, canUndo, canRedo, onChange: (fn) => listeners.push(fn) };
 })();

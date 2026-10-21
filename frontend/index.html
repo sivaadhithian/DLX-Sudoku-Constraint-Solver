@@ -67,6 +67,7 @@
             <div class="title-group">
               <h2 id="board-title">Puzzle</h2>
               <span id="clue-badge" class="badge" hidden></span>
+              <span id="mistake-badge" class="badge badge-mistakes" data-count="0" hidden>Mistakes 0</span>
             </div>
             <div class="utility" role="group" aria-label="Board utilities">
               <button id="btn-reset" class="btn btn-ghost btn-red btn-sm" type="button">
@@ -100,7 +101,7 @@
               <button id="btn-paste" class="icon-btn icon-btn-sm" type="button" aria-label="Paste puzzle" title="Paste a puzzle (or press Ctrl+V on the board)">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 3.5V2.5h4v1M6 8h4M6 10.5h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
-              <button id="btn-visualize" class="tool-btn" type="button" title="Replay Algorithm X step by step">
+              <button id="btn-visualize" class="tool-btn" type="button" title="Replay Algorithm X step by step (browser replay, not the backend’s run)">
                 <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.7 5.6v4.8L10.6 8z" fill="currentColor"/></svg>
                 Visualize
               </button>
@@ -124,7 +125,7 @@
               <button id="pb-close" class="btn btn-ghost btn-red btn-sm" type="button">Close</button>
             </div>
             <p id="pb-readout" class="pb-readout" aria-live="off"></p>
-            <p class="pb-note">Illustrative replay of Algorithm X running in the UI. 1× is one move per second. Telemetry still comes only from the solver backend.</p>
+            <p class="pb-note">Browser replay of Algorithm X for learning. It is not a recording of the backend’s run. 1× is one move per second.</p>
           </div>
 
           <div class="grid-card">
@@ -170,11 +171,13 @@
             <div>
               <h2 id="sl-title">Step log</h2>
               <span id="sl-count" class="sl-count"></span>
+              <span id="sl-source" class="sl-source" hidden></span>
             </div>
             <button id="sl-clear" class="btn btn-ghost btn-sm" type="button">Clear</button>
           </div>
           <p id="sl-note" class="steplog-note"></p>
           <p id="sl-note-trim" class="steplog-note" hidden></p>
+          <button id="sl-more" class="btn btn-ghost btn-sm sl-more" type="button" hidden></button>
           <ol id="sl-list" class="sl-list" tabindex="0" aria-label="Step log entries"></ol>
         </section>
 
@@ -310,15 +313,15 @@
     <div class="level-options" role="group" aria-label="Difficulty">
       <button class="level-btn" type="button" data-level="easy">
         <span class="level-name">Easy</span>
-        <span class="level-desc">About 40–45 clues. Can be finished with simple one-candidate moves.</span>
+        <span class="level-desc">About <span data-range="easy"></span> clues. Can be finished with simple one-candidate moves.</span>
       </button>
       <button class="level-btn" type="button" data-level="medium">
         <span class="level-name">Medium</span>
-        <span class="level-desc">About 32–36 clues. Needs “only place left” moves as well.</span>
+        <span class="level-desc">About <span data-range="medium"></span> clues. Needs “only place left” moves as well.</span>
       </button>
       <button class="level-btn" type="button" data-level="hard">
         <span class="level-name">Hard</span>
-        <span class="level-desc">About 24–28 clues. Simple moves are not enough; expect backtracking.</span>
+        <span class="level-desc">About <span data-range="hard"></span> clues. Simple moves are not enough; expect backtracking.</span>
       </button>
     </div>
     <div class="dialog-actions">

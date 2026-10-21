@@ -29,7 +29,7 @@
 
   /** Digits, Backspace/Delete, and rejection of everything else that is printable. */
   function handleCellInput(event, handlers) {
-    if (DLX.state.status === 'solving' || DLX.state.playback) return; // read-only while busy
+    if (DLX.state.status === 'solving' || DLX.state.playback || DLX.state.generating) return; // read-only while busy
 
     const intent = DLX.interpretKey(event);
     if (intent.action === 'ignore') return;
@@ -43,6 +43,11 @@
     const { row, col } = DLX.state.selected;
     if (DLX.isClue(row, col)) {
       handlers.onRejected(LOCKED_MESSAGE);
+      return;
+    }
+
+    if (DLX.state.verified[row][col]) {
+      handlers.onRejected('That digit is correct, so it is locked.');
       return;
     }
 
@@ -60,12 +65,15 @@
     const unchanged = DLX.state.solution === null && DLX.state.grid[row][col] === newValue;
     if (unchanged) return;
 
-    if (DLX.setCellValue(row, col, newValue)) handlers.onEdit();
+    if (DLX.setCellValue(row, col, newValue)) {
+      const verdict = newValue !== 0 ? DLX.judgeEntry(row, col) : null; // 'ok' | 'bad' | null
+      handlers.onEdit({ verdict, row, col });
+    }
   }
 
   function attachGridInput(container, handlers) {
     container.addEventListener('keydown', (event) => {
-      if (DLX.state.playback) return;
+      if (DLX.state.playback || DLX.state.generating) return;
       if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         handlers.onToggleNotes();

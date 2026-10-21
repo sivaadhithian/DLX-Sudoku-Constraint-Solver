@@ -28,11 +28,15 @@
 
   function syncControls() {
     const solving = DLX.state.status === 'solving';
-    const busy = solving || DLX.state.playback;
+    const generating = DLX.state.generating;
+    const busy = solving || DLX.state.playback || generating;
     buttons.solve.disabled = busy;
     buttons.solve.setAttribute('aria-busy', String(solving));
     document.getElementById('btn-solve-label').textContent = solving ? 'Solving' : 'Solve';
-    buttons.example.disabled = busy;
+    // While generating, the example button becomes "Cancel" so a slow generation can be abandoned.
+    buttons.example.disabled = solving || DLX.state.playback;
+    buttons.example.textContent = generating ? 'Cancel' : 'Load example';
+    buttons.example.setAttribute('aria-label', generating ? 'Cancel puzzle generation' : 'Load example');
     buttons.custom.disabled = busy;
     buttons.reset.disabled = busy || !DLX.canReset();
     buttons.clear.disabled = busy || !DLX.canClear();
@@ -55,23 +59,27 @@
   }
 
   function toggleNotes() {
-    if (DLX.state.playback || DLX.state.status === 'solving') return;
+    if (DLX.state.playback || DLX.state.generating || DLX.state.status === 'solving') return;
     DLX.setPencil(!DLX.state.pencil);
     syncControls();
   }
 
   /** Undo/redo. With a solution on screen, the first Ctrl+Z just hides it. */
   function undo() {
-    if (DLX.state.playback || DLX.state.status === 'solving') return;
+    if (DLX.state.playback || DLX.state.generating || DLX.state.status === 'solving') return;
     if (DLX.state.solution) {
       DLX.state.solution = null;
       refreshStatus({ title: 'Solution hidden.', text: 'Back to your board before solving.' });
       return;
     }
+    const target = DLX.history.peek(-1);
+    if (target && wouldUnlock(target)) { DLX.toast('Correct digits are locked and cannot be undone.', { tone: 'warn' }); return; }
     if (DLX.history.undo()) refreshStatus();
   }
   function redo() {
-    if (DLX.state.playback || DLX.state.status === 'solving') return;
+    if (DLX.state.playback || DLX.state.generating || DLX.state.status === 'solving') return;
+    const target = DLX.history.peek(1);
+    if (target && wouldUnlock(target)) { DLX.toast('Correct digits are locked.', { tone: 'warn' }); return; }
     if (DLX.history.redo()) refreshStatus();
   }
 
@@ -92,7 +100,7 @@
       return;
     }
     if (!(await confirmIfInputWouldBeLost('Replace the current board?', 'Load puzzle'))) return;
-    DLX.loadPuzzle(parsed.grid);
+    DLX.loadPuzzle(parsed.grid, keyFor(parsed.grid));
     DLX.history.commit();
     announceLoaded('Puzzle pasted.');
   }
@@ -119,26 +127,105 @@
     DLX.selectCell(4, 4, { focus: true });
   }
 
-  /** Ask for a difficulty, then load a freshly generated random puzzle of that level. */
+  /** Answer key for a typed/pasted puzzle. Only a puzzle with exactly one solution can be checked. */
+  function keyFor(grid) {
+    const { key, count } = DLX.generator.answerKeyFor(grid);
+    if (!key) {
+      DLX.toast(count === 0
+        ? 'This puzzle has no solution, so answer checking is off.'
+        : count === -1
+          ? 'Could not verify this puzzle quickly enough, so answer checking is off.'
+          : 'This puzzle has more than one solution, so answer checking is off.', { tone: 'warn', duration: 4500 });
+    }
+    return key;
+  }
+
+  /** Green / red feedback for an entered digit; correct digits lock, wrong ones count as mistakes. */
+  function handleVerdict({ verdict, row, col }) {
+    DLX.flashCell(row, col, verdict);
+    if (verdict === 'bad') {
+      DLX.toast(`Not correct. Mistakes: ${DLX.state.mistakes}. You can change this digit.`, { tone: 'bad', duration: 2600 });
+    } else if (DLX.assessBoard(DLX.state.grid).state === 'complete') {
+      DLX.toast(`Puzzle complete with ${DLX.state.mistakes} mistake${DLX.state.mistakes === 1 ? '' : 's'}.`, { tone: 'ok', duration: 4500 });
+    }
+  }
+
+  /** Undo/redo must never take back a digit that was verified as correct. */
+  function wouldUnlock(target) {
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (DLX.state.verified[r][c] && (!target.verified[r][c] || target.grid[r][c] !== DLX.state.grid[r][c])) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Ask for a difficulty, then load a freshly generated random puzzle of that level.
+   *  Generation runs off the UI thread (see generator.js) and can be cancelled. The board is
+   *  only touched once a valid puzzle has arrived, so failure or cancellation changes nothing. */
+  let generation = null; // { cancel } while a request is in flight
+
   async function loadExamplePuzzle() {
+    if (generation) { generation.cancel(); return; } // the button reads "Cancel" while generating
+
     const level = await DLX.askForLevel();
     if (!level) return;
     if (!(await confirmIfInputWouldBeLost('Replace the current board?', 'Load puzzle'))) return;
+    if (generation) return; // another request started while the dialogs were open
 
-    buttons.example.disabled = true;
-    DLX.toast(`Generating ${level === 'easy' ? 'an' : 'a'} ${level} puzzle…`, { duration: 1200 });
-    await new Promise((resolve) => setTimeout(resolve, 30)); // let the toast paint before the work
-    const puzzle = DLX.generator.generatePuzzle(level);
-    DLX.loadPuzzle(puzzle.grid);
-    DLX.history.commit();
-    announceLoaded(`${DLX.generator.LEVELS[level].label} puzzle loaded.`);
+    const cfg = DLX.generator.LEVELS[level];
+    const label = cfg.label;
+    const request = DLX.generator.start(level);
+    generation = request;
+    DLX.state.generating = true;
+    DLX.updateStatus('generating', `Creating ${level === 'easy' ? 'an' : 'a'} ${label.toLowerCase()} puzzle with exactly one solution… Press Cancel to stop.`);
+    syncControls();
+
+    let result;
+    try {
+      result = await request.promise;
+    } catch (error) { // start() never rejects; this is a last line of defence
+      result = { status: 'failed', reason: String((error && error.message) || error) };
+    } finally {
+      generation = null;
+      DLX.state.generating = false;
+    }
+
+    try {
+      if (result.status === 'cancelled') {
+        refreshStatus({ title: 'Generation cancelled.', text: 'Your board was not changed.' });
+      } else if (result.status === 'exact') {
+        DLX.loadPuzzle(result.grid, result.key);
+        DLX.history.commit();
+        announceLoaded(`${label} puzzle loaded.`);
+      } else if (result.status === 'approximate') {
+        // A valid, unique-solution puzzle, but NOT what was asked for. Say so plainly.
+        DLX.loadPuzzle(result.grid, result.key);
+        DLX.history.commit();
+        const actual = DLX.generator.LEVELS[result.actualLevel].label;
+        refreshStatus({
+          title: `Approximate puzzle loaded (not a guaranteed ${label}).`,
+          text: `A ${label} puzzle could not be found in time. This one has ${result.clues} clues and ${result.reason || `plays like ${actual}`}. It has exactly one solution.`,
+        });
+        DLX.selectCell(4, 4, { focus: true });
+        DLX.toast(`Could not guarantee ${label}. Loaded a ${actual.toLowerCase()}-style puzzle instead.`, { tone: 'warn', duration: 6000 });
+      } else {
+        refreshStatus({ title: 'Could not generate a puzzle.', text: `${result.reason || 'Something went wrong.'} Your board was not changed.` });
+        DLX.toast('Puzzle generation failed. Your board was not changed.', { tone: 'bad', duration: 4500 });
+      }
+    } catch (error) {
+      refreshStatus({ title: 'Could not load the puzzle.', text: `${(error && error.message) || error}` });
+    } finally {
+      if (DLX.state.status === 'generating') refreshStatus(); // never leave the "Generating" state behind
+      syncControls();
+    }
   }
 
   async function loadCustomPuzzle() {
     const grid = await DLX.askForCustomPuzzle();
     if (!grid) return;
     if (!(await confirmIfInputWouldBeLost('Replace the current board?', 'Load puzzle'))) return;
-    DLX.loadPuzzle(grid);
+    DLX.loadPuzzle(grid, keyFor(grid));
     DLX.history.commit();
     announceLoaded('Custom puzzle loaded.');
   }
@@ -174,23 +261,44 @@
       return;
     }
 
+    const previousSolution = DLX.state.solution; // restored if anything goes wrong half-way
     DLX.updateStatus('solving');
     syncControls();
-    const result = await DLX.solverClient.solvePuzzle(DLX.cloneGrid(DLX.state.grid));
-    applySolverResult(result);
+    try {
+      // solverClient already turns IPC failures into normalised { status: 'error' } results.
+      const result = await DLX.solverClient.solvePuzzle(DLX.cloneGrid(DLX.state.grid));
+      applySolverResult(result);
+    } catch (error) {
+      // Only unexpected exceptions land here (a bug, or a rejected promise outside the client).
+      DLX.state.solution = previousSolution;
+      DLX.stepLog.clear();
+      DLX.renderGrid();
+      DLX.updateCounts();
+      const detail = error && error.message ? error.message : String(error);
+      DLX.updateStatus('error', `Something went wrong while solving, so the board was left as it was. (${detail})`);
+    } finally {
+      // Whatever happened, never leave the UI stuck in "Solving" with disabled controls.
+      if (DLX.state.status === 'solving') DLX.updateStatus('error', 'The solve did not finish. The board was left as it was.');
+      syncControls();
+    }
   }
-
   function applySolverResult(result) {
     const stats = result.stats || {};
     switch (result.status) {
-      case 'solved':
-        DLX.stepLog.reset({ note: 'Rebuilt from the backend’s solution. Each digit is explained by the simplest rule that fits; the digits themselves come from the solver.' });
-        DLX.stepLog.add(DLX.explain.buildSolveSteps(DLX.state.grid, result.solution), { current: false, scroll: 'top' });
+      case 'solved': {
+        // Build the explanation first: if it throws, nothing has been changed yet.
+        const steps = DLX.explain.buildSolveSteps(DLX.state.grid, result.solution);
+        DLX.stepLog.reset({
+          source: 'reconstructed',
+          note: 'Educational reconstruction. These steps are rebuilt from the backend’s final answer using human-style rules; they are NOT a record of the order the backend’s DLX search actually used. Use Visualize to watch an Algorithm X replay.',
+        });
+        DLX.stepLog.add(steps, { current: false, scroll: 'top' });
         DLX.setSolution(result.solution);
         DLX.renderGrid({ reveal: true });
         DLX.updateCounts();
         DLX.updateStatus('solved', result.multipleSolutions ? 'The solver found a solution; this puzzle has more than one.' : undefined);
         break;
+      }
       case 'no-solution':
         DLX.updateStatus('no-solution');
         break;
@@ -228,7 +336,7 @@
     const gridEl = document.getElementById('sudoku-grid');
     DLX.createGrid(gridEl);
     DLX.attachGridInput(gridEl, {
-      onEdit: () => { DLX.history.commit(); refreshStatus(); },
+      onEdit: (info) => { DLX.history.commit(); refreshStatus(); if (info && info.verdict) handleVerdict(info); },
       onRejected: handleRejectedInput,
       onToggleNotes: toggleNotes,
     });
@@ -254,7 +362,7 @@
     document.addEventListener('paste', (event) => {
       const t = event.target;
       if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
-      if (DLX.state.playback || DLX.state.status === 'solving') return;
+      if (DLX.state.playback || DLX.state.generating || DLX.state.status === 'solving') return;
       const text = event.clipboardData && event.clipboardData.getData('text');
       if (text) { event.preventDefault(); loadFromText(text); }
     });

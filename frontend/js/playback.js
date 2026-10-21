@@ -74,7 +74,9 @@
   }
 
   /* ---------- stepping ---------- */
-  function applyOne({ text = true, paintCell = true } = {}) {
+  /** Apply the next event. With `log: false` the explanation is returned instead of being added to the
+   *  step log, so a caller can add many entries in one batch (skip to end). */
+  function applyOne({ text = true, paintCell = true, log = true } = {}) {
     const { kind, r, c, digit } = decode(trace.events[pos]);
     let exp = null;
     if (kind === 0) {
@@ -86,7 +88,8 @@
     }
     pos++;
     if (paintCell) paint(r, c, kind === 1);
-    if (text) logStep(exp);
+    if (text && log) logStep(exp);
+    return exp;
   }
 
   function finish() {
@@ -145,7 +148,14 @@
     if (textFrom > 0 && skipped > 0 && pos > 0) {
       DLX.stepLog.add([{ kind: 'info', main: `Steps up to #${fmt(pos)} were skipped and are not listed. Use Step or a lower speed to read every move.` }], { current: false });
     }
-    while (pos < trace.events.length) applyOne({ text: true, paintCell: false });
+    // One batch: a single log update and a single highlight, instead of one per event.
+    const batch = [];
+    let last = null;
+    while (pos < trace.events.length) {
+      last = applyOne({ text: true, paintCell: false, log: false });
+      batch.push({ ...last.entry, n: pos });
+    }
+    if (batch.length) DLX.stepLog.add(batch);
     paintAll();
     finish();
   }
@@ -179,7 +189,10 @@
     DLX.state.playback = true;
     document.body.dataset.playback = 'on';
     $('playback').hidden = false;
-    DLX.stepLog.reset({ note: 'Illustrative replay of Algorithm X, including backtracks. Each entry says where a digit goes and why.' });
+    DLX.stepLog.reset({
+      source: 'replay',
+      note: 'Algorithm X with Dancing Links, run in the browser for learning, including backtracks. It is not a recording of the backend’s own run (the backend does not expose one).',
+    });
     for (const id of ['pb-play', 'pb-step', 'pb-end']) $(id).disabled = false;
     paintAll();
     readout();

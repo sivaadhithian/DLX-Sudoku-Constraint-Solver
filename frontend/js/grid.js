@@ -42,7 +42,7 @@
       const notes = noteDigits(DLX.getNotes(r, c));
       return notes.length ? `${where}, empty, notes ${notes.join(', ')}` : `${where}, empty`;
     }
-    return `${where}, ${kind === 'clue' ? 'given clue' : kind} ${value}`;
+    return `${where}, ${kind === 'clue' ? 'given clue' : kind === 'verified' ? 'correct, locked' : kind} ${value}`;
   }
 
   /** The 3x3 pencil-mark layout inside an empty cell. */
@@ -132,5 +132,16 @@
   const setGridBusy = (busy) => gridEl.setAttribute('aria-busy', String(busy));
   const getCellEl = (r, c) => cellAt(r, c);
 
-  Object.assign(DLX, { createGrid, renderGrid, highlightSelection, selectCell, setGridBusy, getCellEl });
+  const FLASH_MS = 2600;
+  /** Show green (correct) or red (wrong) inside the cell for a couple of seconds. */
+  function flashCell(r, c, verdict) {
+    const el = cellAt(r, c);
+    clearTimeout(el._flashTimer);
+    el.classList.remove('flash-ok', 'flash-bad');
+    void el.offsetWidth; // restart the animation if the same cell is hit again
+    el.classList.add(verdict === 'ok' ? 'flash-ok' : 'flash-bad');
+    el._flashTimer = setTimeout(() => el.classList.remove('flash-ok', 'flash-bad'), FLASH_MS);
+  }
+
+  Object.assign(DLX, { createGrid, renderGrid, highlightSelection, selectCell, setGridBusy, getCellEl, flashCell });
 })();

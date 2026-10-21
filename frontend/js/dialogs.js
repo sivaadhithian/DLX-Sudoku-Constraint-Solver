@@ -67,6 +67,11 @@
   function askForLevel() {
     const dialog = $('level-dialog');
     dialog.returnValue = 'cancel';
+    // The clue ranges come from the generator, so the text can never drift from the real criteria.
+    for (const span of dialog.querySelectorAll('[data-range]')) {
+      const cfg = DLX.generator.LEVELS[span.dataset.range];
+      if (cfg) span.textContent = `${cfg.min}–${cfg.max}`;
+    }
     return new Promise((resolve) => {
       const buttons = Array.from(dialog.querySelectorAll('.level-btn'));
       function onPick(event) { dialog.close(event.currentTarget.dataset.level); }
