@@ -63,11 +63,33 @@
     });
   }
 
+  /** Resolves 'easy' | 'medium' | 'hard', or null if cancelled. */
+  function askForLevel() {
+    const dialog = $('level-dialog');
+    dialog.returnValue = 'cancel';
+    return new Promise((resolve) => {
+      const buttons = Array.from(dialog.querySelectorAll('.level-btn'));
+      function onPick(event) { dialog.close(event.currentTarget.dataset.level); }
+      function onCancel() { dialog.close('cancel'); }
+      function onClose() {
+        buttons.forEach((b) => b.removeEventListener('click', onPick));
+        $('level-cancel').removeEventListener('click', onCancel);
+        resolve(['easy', 'medium', 'hard'].includes(dialog.returnValue) ? dialog.returnValue : null);
+      }
+      buttons.forEach((b) => b.addEventListener('click', onPick));
+      $('level-cancel').addEventListener('click', onCancel);
+      dialog.addEventListener('close', onClose, { once: true });
+      dialog.showModal();
+      buttons[0].focus();
+    });
+  }
+
   function initDialogs() {
+    closeOnBackdropClick($('level-dialog'));
     closeOnBackdropClick($('confirm-dialog'));
     closeOnBackdropClick($('custom-dialog'));
     $('custom-input').addEventListener('input', () => { $('custom-error').hidden = true; });
   }
 
-  Object.assign(DLX, { confirmAction, askForCustomPuzzle, initDialogs });
+  Object.assign(DLX, { confirmAction, askForCustomPuzzle, askForLevel, initDialogs });
 })();

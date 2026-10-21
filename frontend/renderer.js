@@ -2,7 +2,6 @@
 (function () {
   'use strict';
   const DLX = window.DLX;
-  const { EXAMPLE_PUZZLE } = DLX.constants;
 
   const NOTICE_DURATION_MS = 3000;
   let noticeTimer = null;
@@ -13,6 +12,7 @@
   /** Redraw the board and pick the status that matches it. `override` sets a one-off message. */
   function refreshStatus(override) {
     clearTimeout(noticeTimer);
+    if (!DLX.state.playback) DLX.stepLog.clear(); // the log describes the board as it was; any edit makes it stale
     const assessment = DLX.renderGrid();
     DLX.updateCounts();
     DLX.setExecutionTime(null);
@@ -119,11 +119,19 @@
     DLX.selectCell(4, 4, { focus: true });
   }
 
+  /** Ask for a difficulty, then load a freshly generated random puzzle of that level. */
   async function loadExamplePuzzle() {
-    if (!(await confirmIfInputWouldBeLost('Replace the current board?', 'Load example'))) return;
-    DLX.loadPuzzle(EXAMPLE_PUZZLE);
+    const level = await DLX.askForLevel();
+    if (!level) return;
+    if (!(await confirmIfInputWouldBeLost('Replace the current board?', 'Load puzzle'))) return;
+
+    buttons.example.disabled = true;
+    DLX.toast(`Generating ${level === 'easy' ? 'an' : 'a'} ${level} puzzle…`, { duration: 1200 });
+    await new Promise((resolve) => setTimeout(resolve, 30)); // let the toast paint before the work
+    const puzzle = DLX.generator.generatePuzzle(level);
+    DLX.loadPuzzle(puzzle.grid);
     DLX.history.commit();
-    announceLoaded('Example puzzle loaded.');
+    announceLoaded(`${DLX.generator.LEVELS[level].label} puzzle loaded.`);
   }
 
   async function loadCustomPuzzle() {
@@ -176,6 +184,8 @@
     const stats = result.stats || {};
     switch (result.status) {
       case 'solved':
+        DLX.stepLog.reset({ note: 'Rebuilt from the backend’s solution. Each digit is explained by the simplest rule that fits; the digits themselves come from the solver.' });
+        DLX.stepLog.add(DLX.explain.buildSolveSteps(DLX.state.grid, result.solution), { current: false, scroll: 'top' });
         DLX.setSolution(result.solution);
         DLX.renderGrid({ reveal: true });
         DLX.updateCounts();

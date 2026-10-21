@@ -69,7 +69,7 @@
               <span id="clue-badge" class="badge" hidden></span>
             </div>
             <div class="utility" role="group" aria-label="Board utilities">
-              <button id="btn-reset" class="btn btn-ghost btn-sm" type="button">
+              <button id="btn-reset" class="btn btn-ghost btn-red btn-sm" type="button">
                 <svg class="btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Reset
               </button>
@@ -121,7 +121,7 @@
                 <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="1.5">1.5×</button>
                 <button class="speed-btn" type="button" role="radio" aria-checked="false" data-speed="2">2×</button>
               </div>
-              <button id="pb-close" class="btn btn-ghost btn-sm" type="button">Close</button>
+              <button id="pb-close" class="btn btn-ghost btn-red btn-sm" type="button">Close</button>
             </div>
             <p id="pb-readout" class="pb-readout" aria-live="off"></p>
             <p class="pb-note">Illustrative replay of Algorithm X running in the UI. 1× is one move per second. Telemetry still comes only from the solver backend.</p>
@@ -145,7 +145,7 @@
 
           <div class="controls" role="group" aria-label="Puzzle controls">
             <div class="segmented" role="group" aria-label="Load a puzzle">
-              <button id="btn-example" class="seg-btn" type="button">Load example</button>
+              <button id="btn-example" class="seg-btn" type="button" title="Generate a random puzzle (Easy / Medium / Hard)">Load example</button>
               <button id="btn-custom" class="seg-btn" type="button">Load custom</button>
             </div>
             <button id="btn-solve" class="btn btn-primary" type="button">
@@ -164,19 +164,18 @@
         <!-- RIGHT COLUMN -->
         <div class="side-col">
 
-        <!-- Step explanations (visible only during a replay) -->
-        <section id="explain" class="panel explain" aria-labelledby="explain-title" hidden>
-          <div class="explain-head">
-            <h2 id="explain-title">Step explanation</h2>
-            <span id="ex-step" class="badge"></span>
+        <!-- Step log: every move with its reason (Visualize and Solve) -->
+        <section id="steplog" class="panel steplog" aria-labelledby="sl-title" hidden>
+          <div class="steplog-head">
+            <div>
+              <h2 id="sl-title">Step log</h2>
+              <span id="sl-count" class="sl-count"></span>
+            </div>
+            <button id="sl-clear" class="btn btn-ghost btn-sm" type="button">Clear</button>
           </div>
-          <p id="ex-title" class="ex-title"></p>
-          <div class="ex-body">
-            <div id="ex-box" class="ex-box" hidden></div>
-            <dl id="ex-sections" class="ex-sections"></dl>
-          </div>
-          <h3 class="ex-log-title">Step log</h3>
-          <ol id="ex-log" class="ex-log"></ol>
+          <p id="sl-note" class="steplog-note"></p>
+          <p id="sl-note-trim" class="steplog-note" hidden></p>
+          <ol id="sl-list" class="sl-list" tabindex="0" aria-label="Step log entries"></ol>
         </section>
 
         <!-- TABBED INFO PANEL -->
@@ -305,6 +304,28 @@
     </form>
   </dialog>
 
+  <dialog id="level-dialog" class="dialog dialog-wide" aria-labelledby="level-title" aria-describedby="level-help">
+    <h2 id="level-title">Choose a difficulty</h2>
+    <p id="level-help">A new random puzzle with a single solution is generated every time.</p>
+    <div class="level-options" role="group" aria-label="Difficulty">
+      <button class="level-btn" type="button" data-level="easy">
+        <span class="level-name">Easy</span>
+        <span class="level-desc">About 40–45 clues. Can be finished with simple one-candidate moves.</span>
+      </button>
+      <button class="level-btn" type="button" data-level="medium">
+        <span class="level-name">Medium</span>
+        <span class="level-desc">About 32–36 clues. Needs “only place left” moves as well.</span>
+      </button>
+      <button class="level-btn" type="button" data-level="hard">
+        <span class="level-name">Hard</span>
+        <span class="level-desc">About 24–28 clues. Simple moves are not enough; expect backtracking.</span>
+      </button>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" type="button" id="level-cancel">Cancel</button>
+    </div>
+  </dialog>
+
   <dialog id="custom-dialog" class="dialog dialog-wide" aria-labelledby="custom-title" aria-describedby="custom-help">
     <h2 id="custom-title">Load custom puzzle</h2>
     <p id="custom-help">Enter nine lines of nine characters, or one line of 81. Use 1–9 for clues and 0 or . for empty cells.</p>
@@ -327,8 +348,10 @@
   <script src="js/history.js"></script>
   <script src="js/runs.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/generator.js"></script>
   <script src="js/dlx-trace.js"></script>
   <script src="js/explain.js"></script>
+  <script src="js/steplog.js"></script>
   <script src="js/playback.js"></script>
   <script src="js/status.js"></script>
   <script src="js/solver-client.js"></script>

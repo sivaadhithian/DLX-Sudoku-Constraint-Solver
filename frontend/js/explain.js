@@ -74,6 +74,13 @@
 
     return {
       kind: 'place', r, c, d, box: b,
+      entry: {
+        kind: 'place', r, c, d,
+        main: `${d} placed in ${pos(r, c)}, ${boxLabel(b)}`,
+        because: pick,
+        check: check,
+        note: `Covers 4 constraints (${(filled + 1) * 4} of 324 so far). Tentative: Algorithm X cannot know yet whether it leads to a full solution.`,
+      },
       title: `Place ${d} at ${pos(r, c)}`,
       sections: [
         ['Where', `Digit ${d} goes into ${pos(r, c)}, inside ${boxLabel(b)}.`],
@@ -95,8 +102,18 @@
   /** `grid` is the board AFTER the placement was removed. */
   function explainUndo({ grid, r, c, d, failCol, failType, more }) {
     const b = boxOf(r, c);
+    const nextText = more
+      ? 'Algorithm X restores the 4 constraints it covered and tries the next option for the same requirement.'
+      : 'No other option is left at this level, so Algorithm X restores the constraints and steps back one more level.';
     return {
       kind: 'undo', r, c, d, box: b,
+      entry: {
+        kind: 'undo', r, c, d,
+        main: `${d} removed from ${pos(r, c)}, ${boxLabel(b)} (backtrack)`,
+        because: `Placing ${d} here led to a dead end: ${failText(failCol, failType)}`,
+        check: nextText,
+        note: `With ${d} removed the cell is empty again and the board has no duplicates.`,
+      },
       title: `Backtrack: remove ${d} from ${pos(r, c)}`,
       sections: [
         ['What happened', `Placing ${d} at ${pos(r, c)} in ${boxLabel(b)} led to a dead end deeper in the search.`],
@@ -135,5 +152,80 @@
     };
   }
 
-  DLX.explain = { explainTry, explainUndo, explainStart, explainDone, describeConstraint, boxCells, boxLabel, short };
+  /** Rebuild a readable order of placements from a finished solution (the backend's result).
+   *  For each digit the simplest rule that explains it is used: a naked single, a hidden
+   *  single, or (if neither applies) the solver's search. Nothing here solves the puzzle:
+   *  the digits themselves always come from `solution`. */
+  function buildSolveSteps(board, solution) {
+    const g = board.map((row) => row.slice());
+    const steps = [];
+    const candidates = (r, c) => {
+      const u = unitDigits(g, r, c);
+      const blocked = new Set([...u.row, ...u.col, ...u.box]);
+      const out = [];
+      for (let k = 1; k <= 9; k++) if (!blocked.has(k)) out.push(k);
+      return out;
+    };
+    const units = [];
+    for (let i = 0; i < 9; i++) {
+      units.push({ type: 'row', i, cells: Array.from({ length: 9 }, (_, k) => [i, k]) });
+      units.push({ type: 'col', i, cells: Array.from({ length: 9 }, (_, k) => [k, i]) });
+      const br = Math.floor(i / 3) * 3, bc = (i % 3) * 3;
+      units.push({ type: 'box', i, cells: Array.from({ length: 9 }, (_, k) => [br + Math.floor(k / 3), bc + (k % 3)]) });
+    }
+    const unitName = (u) => (u.type === 'row' ? `Row ${u.i + 1}` : u.type === 'col' ? `Column ${u.i + 1}` : boxLabel(u.i));
+
+    const emptyCount = () => g.reduce((n, row) => n + row.filter((v) => !v).length, 0);
+    while (emptyCount() > 0) {
+      let pick = null;
+
+      for (let r = 0; r < 9 && !pick; r++) {
+        for (let c = 0; c < 9 && !pick; c++) {
+          if (g[r][c]) continue;
+          const cand = candidates(r, c);
+          if (cand.length === 1 && cand[0] === solution[r][c]) pick = { r, c, d: cand[0], how: 'naked' };
+        }
+      }
+      for (let k = 0; k < units.length && !pick; k++) {
+        const u = units[k];
+        for (let d = 1; d <= 9 && !pick; d++) {
+          if (u.cells.some(([r, c]) => g[r][c] === d)) continue;
+          const spots = u.cells.filter(([r, c]) => !g[r][c] && candidates(r, c).includes(d));
+          if (spots.length === 1 && solution[spots[0][0]][spots[0][1]] === d) pick = { r: spots[0][0], c: spots[0][1], d, how: 'hidden', unit: u };
+        }
+      }
+      if (!pick) {
+        let best = null;
+        for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+          if (g[r][c]) continue;
+          const n = candidates(r, c).length;
+          if (!best || n < best.n) best = { r, c, n };
+        }
+        pick = { r: best.r, c: best.c, d: solution[best.r][best.c], how: 'search' };
+      }
+
+      const { r, c, d, how } = pick;
+      const b = boxOf(r, c);
+      const used = unitDigits(g, r, c);
+      const check = `Row ${r + 1} holds ${list(used.row)}; Column ${c + 1} holds ${list(used.col)}; ${boxLabel(b)} holds ${list(used.box)}. ${d} is in none of them, so it creates no duplicate.`;
+      let because;
+      if (how === 'naked') {
+        because = `It is the only digit that fits ${pos(r, c)}: the digits already in its row, column and box rule out every other digit.`;
+      } else if (how === 'hidden') {
+        because = `In ${unitName(pick.unit)}, the digit ${d} has only one cell left where it can go, and this is that cell.`;
+      } else {
+        because = `No single-step rule decides this cell, so the digit comes from the solver's search result. ${d} is the value that completes the grid.`;
+      }
+      steps.push({
+        kind: 'place', r, c, d,
+        main: `${d} placed in ${pos(r, c)}, ${boxLabel(b)}`,
+        because, check,
+        note: how === 'search' ? 'Taken directly from the backend solution.' : '',
+      });
+      g[r][c] = d;
+    }
+    return steps;
+  }
+
+  DLX.explain = { buildSolveSteps, explainTry, explainUndo, explainStart, explainDone, describeConstraint, boxCells, boxLabel, short };
 })();
