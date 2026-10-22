@@ -1,0 +1,13 @@
+New Algorithmic Visualisation Window: We should add a second button next to Visualize, called "Algorithmic visualisation", that opens a separate window showing how Dancing Links works inside. Every node would be drawn with its four pointers (left, right, up and down), and the pointer being used at that moment would glow. Each direction gets its own colour, and a small legend explains them.
+
+Two Ways to View It: Let's offer a sample mode with 7 columns for learning the basics, and a current puzzle mode so people can watch the same idea on the real Sudoku on the board. In puzzle mode, a small board on the side should let people click an empty square to jump straight to its column in the structure.
+
+Controls & Navigation: We ought to add Play, Step, Next move and Restart buttons, plus a speed choice from 0.5× up to 20×. People should be able to drag to move around, scroll to zoom, double-click or press a Fit view button to fit everything on screen, and tick a "Follow the pointer" box so the view moves along with the action.
+
+Explanations & Counters: We should show a short sentence for each step, with a phase label such as Ready, so people know what the algorithm is doing and why. Counters for steps, pointer reads, pointer writes and search depth would give a clear picture of how much work is happening.
+
+Clear Labelling: We should add a note in the window saying this is a browser replay for learning and not a recording of the backend's run. That way nobody mistakes it for what the solver actually did.
+
+Page, Styling & Busy State: We need two new files, one for the step-by-step algorithm logic and one for drawing and controlling the window. The new button and window need to be added to the page, with a good amount of new styling to match the rest of the app. The new button should also be disabled while the app is busy, like the other buttons, so nothing breaks.
+
+Testing: We should add four tests to the existing test file. They should confirm that the sample has the right column sizes, that it finds the known correct answer, that a generated puzzle ends with a valid solution, and that a search with no answer puts every pointer back exactly as it was. ok vaa nu paaru then i will add it
