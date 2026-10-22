@@ -47,6 +47,7 @@
     buttons.copy.disabled = busy;
     buttons.paste.disabled = busy;
     buttons.visualize.disabled = busy;
+    buttons.algo.disabled = busy;
     DLX.setGridBusy(busy);
     document.getElementById('sudoku-grid').dataset.mode = DLX.state.pencil ? 'notes' : 'digits';
   }
@@ -331,6 +332,7 @@
       copy: document.getElementById('btn-copy'),
       paste: document.getElementById('btn-paste'),
       visualize: document.getElementById('btn-visualize'),
+      algo: document.getElementById('btn-algo'),
     };
 
     const gridEl = document.getElementById('sudoku-grid');

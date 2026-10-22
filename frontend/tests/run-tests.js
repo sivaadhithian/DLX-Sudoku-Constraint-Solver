@@ -99,4 +99,46 @@ test('trace replay reaches a valid solution and records reasons for each move', 
   assert.deepEqual(g, r.key);
 });
 
+console.log('algorithmic visualisation engine');
+require(js('algo-engine.js'));
+const A = window.DLX.algo;
+function runAll(m, cap = 3e6) {
+  const it = A.run(m); let n = 0, last = null; const placed = new Set();
+  for (let s = it.next(); !s.done && n < cap; s = it.next()) {
+    n++; last = s.value;
+    if (last.place !== undefined) placed.add(last.place);
+    if (last.unplace !== undefined) placed.delete(last.unplace);
+    for (const g of last.glows) assert.ok(g.node >= 0 && g.node < m.nodeCount && 'LRUD'.includes(g.dir), 'glow refers to a real pointer');
+  }
+  return { n, last, placed };
+}
+test('sample matrix matches the reference diagram (column sizes 2,2,2,3,2,2,4)', () => {
+  const { matrix } = A.sampleMatrix();
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7].map((i) => matrix.S[i]), [2, 2, 2, 3, 2, 2, 4]);
+});
+test('sample run finds the known exact cover (rows 2, 4 and 6)', () => {
+  const { matrix } = A.sampleMatrix();
+  const { last, placed } = runAll(matrix);
+  assert.equal(last.phase, 'solution');
+  assert.deepEqual([...placed].sort(), [1, 3, 5]);
+});
+test('pointer-level run on a generated puzzle ends in a valid solution', () => {
+  const r = G.generatePuzzle('medium');
+  const { matrix } = A.puzzleMatrix(r.grid);
+  const { last, placed } = runAll(matrix);
+  assert.equal(last.phase, 'solution');
+  const out = r.grid.map((row) => row.slice());
+  for (const ri of placed) { const { r: rr, c, d } = matrix.rows[ri].meta; out[rr][c] = d; }
+  assert.deepEqual(out, r.key);
+});
+test('a search with no solution restores every pointer (dancing links invariant)', () => {
+  const make = () => A.createMatrix([{ name: 'a' }, { name: 'b' }, { name: 'c' }],
+    [{ label: 'r1', cols: [0, 1] }, { label: 'r2', cols: [1, 2] }]); // no exact cover exists
+  const m = make();
+  const before = JSON.stringify([m.L, m.R, m.U, m.D, m.S]);
+  const { last } = runAll(m);
+  assert.notEqual(last.phase, 'solution');
+  assert.equal(JSON.stringify([m.L, m.R, m.U, m.D, m.S]), before);
+});
+
 console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);
