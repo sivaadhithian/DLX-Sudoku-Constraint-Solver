@@ -1,165 +1,150 @@
-# DLX-Sudoku-Constraint-Solver
-## 🏗️ Project Architecture
+# DLX Sudoku Constraint Solver
 
-The project follows a modular architecture that separates the user
-interface, Sudoku-solving algorithm, and testing components.
+A desktop Sudoku application that combines an Electron front end with a C++ Exact Cover solver implemented using Dancing Links (DLX) and Algorithm X.
 
-### Repository Structure
+## Project overview
+
+This project solves 9x9 Sudoku puzzles by modeling them as an Exact Cover problem. The solver engine is implemented in C++ and exposed to the desktop application through a restricted local IPC bridge.
+
+The repository is structured to separate:
+- the desktop UI and application shell,
+- the solver engine and constraints logic,
+- test cases and supporting documentation.
+
+## Repository structure
 
 ```text
 DLX-Sudoku-Constraint-Solver/
-│
 ├── README.md
-├── LICENSE
 ├── .gitignore
-│
+├── package.json
+├── package-lock.json
 ├── frontend/
-│   ├── main.js
-│   ├── preload.js
 │   ├── index.html
 │   ├── styles.css
-│   └── renderer.js
-│
+│   ├── main.js
+│   ├── preload.js
+│   ├── renderer.js
+│   ├── js/
+│   │   ├── algo-engine.js
+│   │   ├── algo-view.js
+│   │   ├── dialogs.js
+│   │   ├── dlx-trace.js
+│   │   ├── explain.js
+│   │   ├── export.js
+│   │   ├── generator-worker.js
+│   │   ├── generator.js
+│   │   ├── grid.js
+│   │   ├── history.js
+│   │   ├── input.js
+│   │   ├── playback.js
+│   │   ├── runs.js
+│   │   ├── solver-client.js
+│   │   ├── state.js
+│   │   ├── status.js
+│   │   ├── steplog.js
+│   │   ├── tabs.js
+│   │   ├── theme.js
+│   │   ├── toast.js
+│   │   └── validation.js
+│   └── tests/
 ├── backend/
+│   ├── CMakeLists.txt
 │   ├── include/
 │   │   ├── dancing_links.h
 │   │   └── sudoku_solver.h
-│   │
 │   ├── src/
 │   │   ├── dancing_links.cpp
 │   │   ├── sudoku_solver.cpp
 │   │   └── main.cpp
-│   │
-│   └── CMakeLists.txt
-│
+│   └── build/
+├── docs/
+│   ├── architecture.md
+│   ├── time_complexity.md
+│   └── viva_questions.md
+├── examples/
 ├── tests/
 │   ├── test_sudoku.cpp
 │   └── test_cases.txt
-│
-├── examples/
-│   └── sample_puzzles.txt
-│
-└── docs/
-    ├── architecture.md
-    ├── time_complexity.md
-    └── viva_questions.md
+├── frontend_issues_and_suggestions_V1.txt
+├── frontend_issues_and_suggestions_V2.txt
+├── frontend_issues_and_suggestions_V3.txt
+└── .vscode/
 ```
 
-### Architectural Components
+## Tech stack
 
-#### 1. Frontend — Electron UI
+- Frontend: Electron, HTML, CSS, JavaScript
+- Backend: C++, CMake
+- Algorithm: Dancing Links (DLX), Algorithm X, Exact Cover
+- Validation: CTest-based backend tests
 
-**Location:** `src/`
+## How it works
 
-Responsible for displaying the Sudoku grid and handling user
-interactions.
+1. The Electron app loads the Sudoku UI.
+2. The user enters a puzzle or selects a generated puzzle.
+3. The renderer sends the grid to the main Electron process.
+4. The main process invokes the compiled C++ solver executable.
+5. The backend parses the puzzle and models it as an Exact Cover problem.
+6. Algorithm X searches the sparse matrix using Dancing Links.
+7. The solver returns a result object containing the solved grid, status, and metadata.
+8. The UI displays the solution or an error message.
 
-- `index.html` — Defines the application interface.
-- `styles.css` — Provides the visual design and layout.
-- `renderer.js` — Handles grid interactions, input validation,
-  and displaying solver results.
-- `main.js` — Creates the Electron application window and
-  manages communication with the C++ backend.
-- `preload.js` — Exposes a restricted, secure API for communication
-  between the renderer and main process.
+## Prerequisites
 
-**Technologies:** HTML, CSS, JavaScript, Electron.js.
+Before running the project, install:
+- Node.js and npm
+- CMake
+- A C++ compiler such as GCC or Clang
 
-#### 2. Backend — Sudoku Solver
+## Getting started
 
-**Location:** `backend/`
+Install dependencies:
 
-Implements the Sudoku-solving algorithm using C++.
+```bash
+npm install
+```
 
-- `dancing_links.h` — Declares the DLX node structure,
-  column headers, and required operations.
-- `dancing_links.cpp` — Implements the Dancing Links structure,
-  including node linking, covering, and uncovering.
-- `sudoku_solver.h` — Declares the Sudoku solver interface.
-- `sudoku_solver.cpp` — Converts Sudoku constraints into an
-  Exact Cover problem and implements Algorithm X.
-- `main.cpp` — Provides the executable entry point and handles
-  puzzle input and solution output.
-- `CMakeLists.txt` — Defines how the C++ solver is compiled.
+Build the backend solver:
 
-**Technologies:** C++, Exact Cover, Algorithm X, Dancing Links,
-circular doubly linked structures, recursion, and backtracking.
+```bash
+npm run build:backend
+```
 
-#### 3. Testing and Validation
+This creates the native solver executable under the backend build directory.
 
-**Location:** `tests/`
+Start the Electron application:
 
-Verifies the correctness and reliability of the solver.
+```bash
+npm start
+```
 
-- `test_sudoku.cpp` — Tests solver behavior.
-- `test_cases.txt` — Contains test inputs for different scenarios.
+Run the backend tests:
 
-Test scenarios include:
+```bash
+npm run test:backend
+```
 
-- Valid Sudoku puzzles.
-- Invalid or conflicting input.
-- Puzzles with no solution.
-- Already completed puzzles.
-- Puzzles with multiple solutions, where applicable.
+## Solver CLI
 
-#### 4. Examples
+The native solver can also be invoked directly from the command line.
 
-**Location:** `examples/`
+```bash
+./backend/build/bin/sudoku_solver --version
+./backend/build/bin/sudoku_solver "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
 
-Contains sample Sudoku puzzles that can be used to demonstrate
-and verify the solver.
+The solver reads a 81-character puzzle string or 9x9 input from stdin and prints a JSON result.
 
-#### 5. Documentation
+## Documentation
 
-**Location:** `docs/`
+Detailed case-study notes and analysis are available in the docs folder:
+- `docs/architecture.md`
+- `docs/time_complexity.md`
+- `docs/viva_questions.md`
 
-Contains supporting documentation for the case study.
+## Notes
 
-- `architecture.md` — Detailed architecture and data flow.
-- `time_complexity.md` — Algorithmic time and space complexity.
-- `viva_questions.md` — Important case study and viva questions.
-
----
-
-### System Workflow
-
-1. The user enters a Sudoku puzzle through the Electron interface.
-2. The renderer validates the input format.
-3. The Electron main process receives the request.
-4. The main process invokes the compiled C++ solver.
-5. The solver converts the puzzle into an Exact Cover problem.
-6. Dancing Links represents the sparse constraint matrix using
-   linked nodes.
-7. Algorithm X searches for a solution using recursion,
-   covering, and uncovering operations.
-8. The C++ solver returns the result to the Electron main process.
-9. Electron sends the result to the renderer.
-10. The interface displays the solved puzzle or an appropriate
-    error message.
-
-### Algorithm Overview
-
-The solver models a standard 9 × 9 Sudoku as an Exact Cover problem.
-
-- **324 constraints:** 81 cell constraints, 81 row-number
-  constraints, 81 column-number constraints, and 81 box-number
-  constraints.
-- **729 candidate assignments:** The maximum number of
-  cell-number assignments before applying the given clues.
-- **Four constraints per candidate:** Each assignment satisfies
-  one constraint from each category.
-
-Algorithm X selects constraints and explores candidate assignments.
-Dancing Links supports efficient removal and restoration of nodes
-during the search.
-
-### Design Principles
-
-- **Modularity:** The UI, solver, and tests are separated.
-- **Separation of concerns:** The frontend handles presentation,
-  while the C++ backend handles solving.
-- **Maintainability:** Individual components can be modified
-  without unnecessarily affecting other components.
-- **Testability:** The solver can be tested independently of the UI.
-- **Security:** Electron uses a restricted preload bridge rather
-  than exposing unrestricted Node.js access to the renderer.
+- This app is designed for local use on a desktop machine.
+- The frontend uses a restricted preload bridge and validates input before passing it to the backend.
+- The backend implementation is intentionally separated from the UI to keep the solving logic independent and testable.
