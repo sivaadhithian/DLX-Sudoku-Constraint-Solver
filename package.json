@@ -1,0 +1,15 @@
+{
+  "name": "dlx-sudoku-constraint-solver",
+  "version": "1.0.0",
+  "description": "Sudoku & Constraint Solver using Dancing Links (DLX) and Algorithm X",
+  "main": "frontend/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:backend": "cmake -S backend -B backend/build -DCMAKE_BUILD_TYPE=Release && cmake --build backend/build --config Release",
+    "test:backend": "ctest --test-dir backend/build -C Release --output-on-failure"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "license": "MIT"
+}

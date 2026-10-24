@@ -30,56 +30,22 @@
     }
   }
 
-  function noteDigits(mask) {
-    const out = [];
-    for (let d = 1; d <= 9; d++) if (mask & (1 << d)) out.push(d);
-    return out;
-  }
-
   function describeCell(r, c, value, kind) {
     const where = `Row ${r + 1}, Column ${c + 1}`;
-    if (value === 0) {
-      const notes = noteDigits(DLX.getNotes(r, c));
-      return notes.length ? `${where}, empty, notes ${notes.join(', ')}` : `${where}, empty`;
-    }
-    return `${where}, ${kind === 'clue' ? 'given clue' : kind === 'verified' ? 'correct, locked' : kind} ${value}`;
-  }
-
-  /** The 3x3 pencil-mark layout inside an empty cell. */
-  function buildNotes(mask) {
-    const wrap = document.createElement('div');
-    wrap.className = 'notes';
-    for (let d = 1; d <= 9; d++) {
-      const span = document.createElement('span');
-      span.textContent = mask & (1 << d) ? String(d) : '';
-      wrap.appendChild(span);
-    }
-    return wrap;
+    if (value === 0) return `${where}, empty`;
+    return `${where}, ${kind === 'clue' ? 'given clue' : kind} ${value}`;
   }
 
   /** Redraw every cell from state. Returns the board assessment so callers can update status. */
-  function renderGrid({ reveal = false } = {}) {
+  function renderGrid() {
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const el = cellAt(r, c);
         const value = DLX.getValue(r, c);
         const kind = DLX.getCellKind(r, c);
-        const mask = value === 0 ? DLX.getNotes(r, c) : 0;
-        const sig = `${value}|${mask}`;
-        if (el._sig !== sig) {
-          el._sig = sig;
-          if (value !== 0) el.textContent = String(value);
-          else if (mask !== 0) { el.textContent = ''; el.appendChild(buildNotes(mask)); }
-          else el.textContent = '';
-        }
+        const text = value === 0 ? '' : String(value);
+        if (el.textContent !== text) el.textContent = text;
         el.dataset.kind = kind;
-        el.classList.remove('bt');
-        if (reveal && kind === 'solved') {
-          el.style.setProperty('--d', `${(r * SIZE + c) * 14}ms`);
-          el.classList.add('reveal');
-        } else {
-          el.classList.remove('reveal');
-        }
         el.setAttribute('aria-label', describeCell(r, c, value, kind));
         if (kind === 'clue') el.setAttribute('aria-readonly', 'true');
         else el.removeAttribute('aria-readonly');
@@ -130,18 +96,6 @@
   }
 
   const setGridBusy = (busy) => gridEl.setAttribute('aria-busy', String(busy));
-  const getCellEl = (r, c) => cellAt(r, c);
 
-  const FLASH_MS = 2600;
-  /** Show green (correct) or red (wrong) inside the cell for a couple of seconds. */
-  function flashCell(r, c, verdict) {
-    const el = cellAt(r, c);
-    clearTimeout(el._flashTimer);
-    el.classList.remove('flash-ok', 'flash-bad');
-    void el.offsetWidth; // restart the animation if the same cell is hit again
-    el.classList.add(verdict === 'ok' ? 'flash-ok' : 'flash-bad');
-    el._flashTimer = setTimeout(() => el.classList.remove('flash-ok', 'flash-bad'), FLASH_MS);
-  }
-
-  Object.assign(DLX, { createGrid, renderGrid, highlightSelection, selectCell, setGridBusy, getCellEl, flashCell });
+  Object.assign(DLX, { createGrid, renderGrid, highlightSelection, selectCell, setGridBusy });
 })();

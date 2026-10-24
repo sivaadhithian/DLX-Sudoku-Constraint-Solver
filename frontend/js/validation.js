@@ -93,13 +93,6 @@
    * digits 1-9 for clues and 0 or . for empty cells. Blank lines are ignored.
    */
   function parsePuzzleText(text) {
-    // Also accept the compact form: 81 characters on one line (whitespace ignored).
-    const compact = text.replace(/\s+/g, '');
-    if (compact.length === SIZE * SIZE && !/\n/.test(text.trim()) && /^[0-9.]+$/.test(compact)) {
-      const grid = [];
-      for (let r = 0; r < SIZE; r++) grid.push(Array.from(compact.slice(r * SIZE, (r + 1) * SIZE), (ch) => (ch === '.' ? 0 : Number(ch))));
-      return { ok: true, grid };
-    }
     const lines = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== '');
     if (lines.length !== SIZE) {
       return { ok: false, message: `Expected 9 lines, found ${lines.length}.` };

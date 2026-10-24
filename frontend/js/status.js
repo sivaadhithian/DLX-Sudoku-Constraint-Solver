@@ -22,7 +22,6 @@
       text: 'Every cell is filled and no row, column or box repeats a digit. This is a rule check only; the solver has not run.',
     },
     solving: { label: 'Solving', tone: 'info', title: 'Solving', text: 'Waiting for the solver backend…' },
-    generating: { label: 'Generating', tone: 'info', title: 'Generating puzzle', text: 'Creating a random puzzle…' },
     solved: { label: 'Solved', tone: 'ok', title: 'Solved', text: 'The solver returned a solution. Your clues are unchanged.' },
     'no-solution': {
       label: 'No solution', tone: 'bad', title: 'No solution',
@@ -50,10 +49,10 @@
     DLX.state.status = kind;
     currentMessage = { tone: def.tone, title: title || def.title, text: text || def.text };
     renderMessage(currentMessage);
-    $('progress').hidden = kind !== 'solving' && kind !== 'generating';
+    $('progress').hidden = kind !== 'solving';
 
     // data-solver drives the pulse / shimmer animations in CSS.
-    document.body.dataset.solver = kind === 'solving' ? 'solving' : kind === 'generating' ? 'generating' : 'idle';
+    document.body.dataset.solver = kind === 'solving' ? 'solving' : 'idle';
     $('header-status').dataset.tone = def.tone;
     $('header-status-text').textContent = def.label;
   }
@@ -66,18 +65,9 @@
     if (currentMessage) renderMessage(currentMessage);
   }
 
-  /** One quiet badge next to the puzzle title: how many given clues are loaded. */
-  function updateCounts() {
-    const clues = DLX.state.original.reduce((n, row) => n + row.filter((v) => v !== 0).length, 0);
-    const badge = $('clue-badge');
-    badge.hidden = clues === 0;
-    badge.textContent = `${clues} clue${clues === 1 ? '' : 's'}`;
-
-    const mb = $('mistake-badge');
-    mb.hidden = !DLX.state.key; // only while answers can be checked
-    mb.textContent = `Mistakes ${DLX.state.mistakes}`;
-    mb.dataset.count = String(DLX.state.mistakes);
-  }
+  /** Clue / entered / empty counters were removed with the status bar. Kept as a no-op so
+   *  existing callers (renderer.js) keep working. */
+  function updateCounts() {}
 
   /** Execution time comes only from a real backend result. */
   function setExecutionTime(ms) {
@@ -96,7 +86,6 @@
       $(id).textContent = available ? value.toLocaleString('en-US') : UNAVAILABLE;
       $(id).classList.toggle('unavailable', !available);
     }
-    if (!stats && DLX.runs) DLX.runs.clearDeltas();
   }
 
   function setBackendInfo(info) {
