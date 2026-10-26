@@ -32,6 +32,15 @@ bool isValidSolution(const sudoku::Grid& g) {
     return true;
 }
 
+const char* statusName(sudoku::Status status) {
+    switch (status) {
+        case sudoku::Status::Solved: return "solved";
+        case sudoku::Status::NoSolution: return "no-solution";
+        case sudoku::Status::Invalid: return "invalid";
+    }
+    return "unknown";
+}
+
 }  // namespace
 
 int main() {
@@ -42,6 +51,18 @@ int main() {
     }
 
     int passed = 0, failed = 0;
+    const auto report = [&passed, &failed](const std::string& name,
+                                           const std::string& problem,
+                                           const std::string& details = "") {
+        if (problem.empty()) {
+            ++passed;
+            std::cout << "[PASS] " << name << details << "\n";
+        } else {
+            ++failed;
+            std::cout << "[FAIL] " << name << ": " << problem << "\n";
+        }
+    };
+
     std::string line;
     while (std::getline(file, line)) {
         line = trim(line);
@@ -54,6 +75,7 @@ int main() {
         const std::string expected = trim(line.substr(p2 + 1));
 
         std::string problem;
+        std::string details;
         sudoku::Grid grid{};
         std::string parseError;
         const bool parsed = sudoku::parsePuzzle(puzzle, grid, parseError);
@@ -62,6 +84,12 @@ int main() {
             if (expected != "invalid") problem = "unexpected parse failure: " + parseError;
         } else {
             const sudoku::Result r = sudoku::solve(grid);
+            details = std::string(" | status=") + statusName(r.status) +
+                      " solutions=" + std::to_string(r.solutionCount) +
+                      " calls=" + std::to_string(r.stats.recursiveCalls) +
+                      " backtracks=" + std::to_string(r.stats.backtracks) +
+                      " unlinks=" + std::to_string(r.stats.nodesVisited) +
+                      " elapsed-ms=" + std::to_string(r.executionMs);
             if (expected == "invalid") {
                 if (r.status != sudoku::Status::Invalid) problem = "expected invalid";
             } else if (expected == "no-solution") {
@@ -84,9 +112,40 @@ int main() {
             }
         }
 
-        if (problem.empty()) { ++passed; std::cout << "[PASS] " << name << "\n"; }
-        else { ++failed; std::cout << "[FAIL] " << name << ": " << problem << "\n"; }
+        report(name, problem, details);
     }
+
+    sudoku::Grid outOfRange{};
+    outOfRange[0][0] = 10;
+    const sudoku::Result invalidGrid = sudoku::solve(outOfRange);
+    report("solve_rejects_out_of_range_cell",
+           invalidGrid.status == sudoku::Status::Invalid
+               ? ""
+               : "expected invalid for a cell value outside 0-9");
+
+    sudoku::Grid multipleGrid{};
+    std::string parseError;
+    const bool parsedMultiple = sudoku::parsePuzzle(
+        "123456789000000000000000000000000000000000000000000000000000000000000000000000000",
+        multipleGrid, parseError);
+    const sudoku::Result cappedResult = parsedMultiple
+        ? sudoku::solve(multipleGrid, 1)
+        : sudoku::Result{};
+    std::string cappedProblem;
+    if (!parsedMultiple) cappedProblem = "could not parse multiple-solution fixture: " + parseError;
+    else if (cappedResult.status != sudoku::Status::Solved || cappedResult.solutionCount != 1 ||
+             cappedResult.multipleSolutions || !isValidSolution(cappedResult.solution)) {
+        cappedProblem = "expected one valid solution when the search limit is one";
+    }
+    report("solution_limit_caps_search", cappedProblem,
+           parsedMultiple
+               ? std::string(" | status=") + statusName(cappedResult.status) +
+                     " solutions=" + std::to_string(cappedResult.solutionCount) +
+                     " calls=" + std::to_string(cappedResult.stats.recursiveCalls) +
+                     " backtracks=" + std::to_string(cappedResult.stats.backtracks) +
+                     " unlinks=" + std::to_string(cappedResult.stats.nodesVisited) +
+                     " elapsed-ms=" + std::to_string(cappedResult.executionMs)
+               : "");
 
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
